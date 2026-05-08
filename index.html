@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>IMOCA 60 Zeilgame</title>
+<style>
+  body { margin:0; padding:0; overflow:hidden; background:#000; font-family:'Segoe UI',sans-serif; }
+  #gameCanvas { display:block; }
+  #hud {
+    position:absolute; top:10px; left:10px; background:rgba(0,20,40,0.85);
+    padding:10px 14px; color:#fff; font-size:13px; border-radius:8px;
+    border-left:3px solid #4a9eff; pointer-events:none;
+  }
+  #hud .label { color:#7ab8ff; font-size:11px; text-transform:uppercase; }
+  #hud .value { font-size:16px; font-weight:bold; }
+  #errorDisplay {
+    position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+    background:rgba(255,0,0,0.8); color:#fff; padding:10px 20px;
+    border-radius:8px; font-size:14px; display:none; max-width:800px;
+    text-align:center; z-index:100;
+  }
+  #help {
+    position:absolute; bottom:10px; right:10px; color:#aaa; font-size:12px;
+    background:rgba(0,0,0,0.6); padding:8px 20px; border-radius:20px;
+  }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="hud">
+  <div><span class="label">Snelheid</span> <span class="value" id="speed">0</span> knopen</div>
+  <div><span class="label">Koers</span> <span class="value" id="heading">0</span>°</div>
+  <div><span class="label">Wind</span> <span class="value" id="wind">0</span> knopen</div>
+  <div><span class="label">Zeilstand</span> <span class="value" id="sailTrim">0</span>°</div>
+</div>
+<div id="errorDisplay"></div>
+<div id="help">W/S: Zeil trim | A/D: Stuur | H: Help</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const errorDisplay = document.getElementById('errorDisplay');
+const speedEl = document.getElementById('speed');
+const headingEl = document.getElementById('heading');
+const windEl = document.getElementById('wind');
+const sailTrimEl = document.getElementById('sailTrim');
+
+let errorMessages = [];
+function showError(msg) {
+  errorMessages.push(msg);
+  errorDisplay.style.display = 'block';
+  errorDisplay.innerHTML = '<b>Fout:</b><br>' + errorMessages.map((m,i) => `${i+1}. ${m}`).join('<br>');
+  console.error(msg);
+}
+
+window.onerror = (msg, url, line, col, err) => {
+  showError(`${msg} (${line}:${col})`);
+  return false;
+};
+
+// Resize canvas
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Game state
+const boat = {
+  x: 0, y: 0,
+  heading: 0, // radians
+  speed: 0,
+  sailAngle: 0, // relative to boat heading
+  heel: 0,
+  vx: 0, vy: 0
+};
+
+const wind = {
+  speed: 15, // knots
+  direction: Math.PI * 0.75 // radians from north
+};
+
+const keys = { w:false, s:false, a:false, d:false };
+
+// Controls
+document.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  if (key === 'w' || key === 's' || key === 'a' || key === 'd') {
+    keys[key] = true;
+  }
+  if (key === 'h') {
+    showError('Besturing: W/S = zeil trimmen, A/D = sturen. De boot vaart met de wind!');
+  }
+});
+document.addEventListener('keyup', (e) => {
+  const key = e.key.toLowerCase();
+  if (keys.hasOwnProperty(key)) keys[key] = false;
+});
+
+// Camera
+const camera = { x: 0, y: 0, targetX: 0, targetY: 0 };
+
+// Physics constants
+const KNOTS_TO_MPS = 0.514444;
+const BOAT_LENGTH = 18.0;
+const MAX_SPEED = 25;
+
+function updatePhysics(dt) {
+  // Controls
+  if (keys.a) boat.heading -= 1.5 * dt;
+  if (keys.d) boat.heading += 1.5 * dt;
+  if (keys.w) boat.sailAngle = Math.max(-Math.PI/3, boat.sailAngle - 1.0 * dt);
+  if (keys.s) boat.sailAngle = Math.min(Math.PI/3, boat.sailAngle + 1.0 * dt);
+
+  // Apparent wind
+  const windX = Math.sin(wind.direction) * wind.speed * KNOTS_TO_MPS;
+  const windY = -Math.cos(wind.direction) * wind.speed * KNOTS_TO_MPS;
+  const apparentWindX = windX - boat.vx;
+  const apparentWindY = windY - boat.vy;
+  const apparentWindSpeed = Math.sqrt(apparentWindX**2 + apparentWindY**2);
+  const apparentWindDir = Math.atan2(apparentWindX, -apparentWindY);
+
+  // Angle of attack
+  const sailAngleWorld = boat.heading + boat.sailAngle;
+  let aoa = sailAngleWorld - apparentWindDir;
+  aoa = ((aoa + Math.PI) % (2*Math.PI)) - Math.PI;
+
+  // Lift and drag (simplified)
+  const liftCoeff = Math.max(0, Math.sin(2 * Math.abs(aoa))) * 1.5;
+  const dragCoeff = 0.3 + 0.7 * Math.sin(aoa)**2;
+
+  // Force in boat direction
+  const force = apparentWindSpeed**2 * (liftCoeff * Math.cos(aoa) - dragCoeff * 0.3);
+  const acceleration = force * 0.02;
+
+  // Water resistance
+  const resistance = boat.speed * boat.speed * 0.03;
+  const netAccel = acceleration - resistance;
+
+  boat.speed += netAccel * dt;
+  boat.speed = Math.max(0, Math.min(MAX_SPEED, boat.speed));
+
+  // Update velocity
+  boat.vx = Math.sin(boat.heading) * boat.speed * KNOTS_TO_MPS;
+  boat.vy = -Math.cos(boat.heading) * boat.speed * KNOTS_TO_MPS;
+
+  // Update position
+  boat.x += boat.vx * dt;
+  boat.y += boat.vy * dt;
+
+  // Heeling
+  boat.heel = liftCoeff * boat.speed * 0.05;
+  boat.heel = Math.max(-0.3, Math.min(0.3, boat.heel));
+}
+
+function updateCamera(dt) {
+  camera.targetX = boat.x;
+  camera.targetY = boat.y + 50;
+  camera.x += (camera.targetX - camera.x) * 2.0 * dt;
+  camera.y += (camera.targetY - camera.y) * 2.0 * dt;
+}
+
+function drawBoat() {
+  ctx.save();
+  ctx.translate(canvas.width/2, canvas.height/2);
+
+  // Apply heel
+  ctx.rotate(boat.heel);
+
+  // Boat hull
+  ctx.save();
+  ctx.rotate(boat.heading);
+
+  // Hull
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(30, 0);
+  ctx.lineTo(25, 8);
+  ctx.lineTo(-25, 8);
+  ctx.lineTo(-30, 0);
+  ctx.lineTo(-25, -8);
+  ctx.lineTo(25, -8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Cabin
+  ctx.fillStyle = '#888';
+  ctx.fillRect(-5, -8, 15, -10);
+
+  // Mast
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -8);
+  ctx.lineTo(0, -35);
+  ctx.stroke();
+
+  // Sail
+  ctx.save();
+  ctx.rotate(boat.sailAngle);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath();
+  ctx.moveTo(0, -35);
+  ctx.lineTo(15, -5);
+  ctx.lineTo(0, -5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // Keel
+  ctx.fillStyle = '#0066aa';
+  ctx.fillRect(-3, 8, 6, 15);
+
+  ctx.restore();
+
+  // Wake
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const wakeX = -30 - i * 10;
+    const wakeY = (Math.random() - 0.5) * 10;
+    ctx.beginPath();
+    ctx.moveTo(wakeX, wakeY - 5);
+    ctx.lineTo(wakeX - 15, wakeY + 5);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawWater() {
+  const waterY = canvas.height/2 + 20;
+  ctx.fillStyle = '#006699';
+  ctx.fillRect(0, waterY, canvas.width, canvas.height - waterY);
+
+  // Waves
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  const time = Date.now() * 0.001;
+  for (let i = 0; i < 5; i++) {
+    ctx.beginPath();
+    for (let x = 0; x < canvas.width; x += 5) {
+      const y = waterY + Math.sin(x * 0.02 + time + i) * 3 + i * 5;
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawWindIndicator() {
+  const cx = canvas.width - 60;
+  const cy = 60;
+  const length = 30;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(wind.direction);
+
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -length);
+  ctx.stroke();
+
+  // Arrow head
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(-5, -length + 8);
+  ctx.lineTo(0, -length);
+  ctx.lineTo(5, -length + 8);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px Arial';
+  ctx.fillText(wind.speed + ' kn', cx - 15, cy + 20);
+}
+
+function drawCompass() {
+  const cx = 60;
+  const cy = canvas.height - 60;
+  const radius = 30;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Circle
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Heading marker
+  ctx.rotate(-boat.heading);
+  ctx.fillStyle = '#ff4444';
+  ctx.beginPath();
+  ctx.moveTo(0, -radius + 5);
+  ctx.lineTo(-5, -radius + 15);
+  ctx.lineTo(5, -radius + 15);
+  ctx.closePath();
+  ctx.fill();
+
+  // North marker
+  ctx.rotate(wind.direction);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px Arial';
+  ctx.fillText('N', -4, -radius - 5);
+
+  ctx.restore();
+}
+
+function updateHUD() {
+  speedEl.textContent = boat.speed.toFixed(1);
+  headingEl.textContent = ((boat.heading * 180 / Math.PI + 360) % 360).toFixed(0);
+  windEl.textContent = wind.speed.toFixed(0);
+  sailTrimEl.textContent = (boat.sailAngle * 180 / Math.PI).toFixed(0);
+}
+
+// Game loop
+let lastTime = performance.now();
+function gameLoop(time) {
+  const dt = Math.min((time - lastTime) / 1000, 0.1);
+  lastTime = time;
+
+  updatePhysics(dt);
+  updateCamera(dt);
+
+  // Clear
+  ctx.fillStyle = '#111122';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawWater();
+  drawBoat();
+  drawWindIndicator();
+  drawCompass();
+  updateHUD();
+
+  requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
