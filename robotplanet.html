@@ -563,6 +563,8 @@ function startGame() {
   var input = document.getElementById('nameInput');
   var pName = input ? input.value.trim() || "MechWarrior" : "MechWarrior";
   player = new RobotArena(pName, 150, 250, true);
+  player.maxHp = 200;
+  player.hp = 200;
   enemies = [];
   var positions = getEnemyPositions(enemyCount);
   var used = {};
