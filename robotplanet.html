@@ -360,6 +360,14 @@ for (let i = 0; i < 60; i++) {
   bgStars.push({ x: Math.random() * W, y: Math.random() * H, r: 0.5 + Math.random() * 1.5, s: 0.5 + Math.random() * 1 });
 }
 
+let mouseX = 400, mouseY = 250;
+
+document.addEventListener('mousemove', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+  mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+});
+
 class RobotArena {
   constructor(name, x, y, isPlayer) {
     this.name = name;
@@ -382,8 +390,11 @@ class RobotArena {
     this.shakeTimer = 0;
     this.hitFlash = 0;
     this.shootFlash = 0;
-    this.dir = isPlayer ? 1 : -1;
     this.moveSway = 0;
+    this.bodyAngle = isPlayer ? 0 : Math.PI;
+    this.turretAngle = isPlayer ? 0 : Math.PI;
+    this.lastMx = 0;
+    this.lastMy = 0;
   }
 
   alive() { return this.hp > 0; }
@@ -420,6 +431,13 @@ class RobotArena {
       if (dist > 5) {
         this.x += (dx / dist) * this.speed * 0.65;
         this.y += (dy / dist) * this.speed * 0.65;
+        this.bodyAngle = Math.atan2(dy, dx);
+      }
+      // Turret aims at player
+      const tdx = player.x - this.x;
+      const tdy = player.y - this.y;
+      if (Math.sqrt(tdx*tdx + tdy*tdy) > 5) {
+        this.turretAngle = Math.atan2(tdy, tdx);
       }
     } else {
       let mx = 0, my = 0;
@@ -430,6 +448,17 @@ class RobotArena {
       if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; }
       this.x += mx * this.speed;
       this.y += my * this.speed;
+      if (mx !== 0 || my !== 0) {
+        this.bodyAngle = Math.atan2(my, mx);
+      }
+      // Turret aims at mouse
+      const tdx = mouseX - this.x;
+      const tdy = mouseY - this.y;
+      if (Math.sqrt(tdx*tdx + tdy*tdy) > 5) {
+        this.turretAngle = Math.atan2(tdy, tdx);
+      }
+      this.lastMx = mx;
+      this.lastMy = my;
     }
 
     this.x = Math.max(35, Math.min(W - 35, this.x));
@@ -450,7 +479,7 @@ class RobotArena {
       for (let ring = 0; ring < 3; ring++) {
         ctx.beginPath();
         ctx.arc(0, 0, 28 + ring * 4 + Math.sin(Date.now() / 150 + ring) * 3, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(68, 221, 255, ${0.3 - ring * 0.08})`;
+        ctx.strokeStyle = 'rgba(68, 221, 255, ' + (0.3 - ring * 0.08) + ')';
         ctx.lineWidth = 3 - ring * 0.5;
         ctx.stroke();
       }
@@ -460,105 +489,92 @@ class RobotArena {
       ctx.fill();
     }
 
-    // === STUN GLOW ===
-    if (this.stunned) {
-      ctx.shadowColor = "#ff66aa";
-      ctx.shadowBlur = 30;
-    }
+    // === GLOWS ===
+    if (this.stunned) { ctx.shadowColor = "#ff66aa"; ctx.shadowBlur = 30; }
+    if (this.hitFlash > 0) { ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 40; }
+    if (this.shootFlash > 0) { ctx.shadowColor = this.color; ctx.shadowBlur = 25; }
 
-    // === HIT FLASH ===
-    if (this.hitFlash > 0) {
-      ctx.shadowColor = "#ffffff";
-      ctx.shadowBlur = 40;
-    }
-
-    if (this.shootFlash > 0) {
-      ctx.shadowColor = this.color;
-      ctx.shadowBlur = 25;
-    }
-
-    // === TANK DRAWING ===
     const s = this.w;
-    const dir = this.dir;
     const sway = Math.sin(this.moveSway * 3) * 1.5;
 
-    // Shadow under tank
+    // Shadow (world-space below tank)
     ctx.fillStyle = "rgba(0,0,0,0.3)";
     ctx.beginPath();
-    ctx.ellipse(0, s/3 + 6, s/2 + 4, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 8, s/2 + 2, s/3, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Exhaust smoke puffs when moving
-    if (this.isPlayer && (keys['w'] || keys['s'] || keys['a'] || keys['d'])) {
-      if (Math.random() < 0.3) {
-        particles.push({
-          x: -dir * s/3, y: 4 + (Math.random() - 0.5) * 6,
-          vx: -dir * (0.5 + Math.random()), vy: (Math.random() - 0.5) * 0.3,
-          life: 20 + Math.random() * 15, maxLife: 35,
-          color: "#888899", size: 3 + Math.random() * 4, type: "smoke",
-        });
-      }
-    }
-
+    // === BODY ===
+    ctx.save();
+    ctx.rotate(this.bodyAngle);
     // Treads
     ctx.fillStyle = "#445566";
     ctx.shadowBlur = 0;
     ctx.fillRect(-s/2 - 3, -s/3 + sway, 7, s * 0.68);
     ctx.fillRect(s/2 - 4, -s/3 + sway, 7, s * 0.68);
-
-    // Track details (wheels)
+    // Wheel details
     ctx.fillStyle = "#556677";
     for (let i = 0; i < 4; i++) {
       const ty = -s/3 + 5 + i * (s * 0.68 / 4) + sway;
       ctx.fillRect(-s/2 - 1, ty, 4, 5);
       ctx.fillRect(s/2 - 3, ty, 4, 5);
     }
-
-    // Body
+    // Body box
     const bodyGrad = ctx.createLinearGradient(-s/2, 0, s/2, 0);
     if (this.isPlayer) {
-      bodyGrad.addColorStop(0, "#1a66aa");
-      bodyGrad.addColorStop(0.3, "#3388dd");
-      bodyGrad.addColorStop(0.7, "#3388dd");
-      bodyGrad.addColorStop(1, "#1a66aa");
+      bodyGrad.addColorStop(0, "#1a66aa"); bodyGrad.addColorStop(0.3, "#3388dd");
+      bodyGrad.addColorStop(0.7, "#3388dd"); bodyGrad.addColorStop(1, "#1a66aa");
     } else {
-      bodyGrad.addColorStop(0, "#aa2222");
-      bodyGrad.addColorStop(0.3, "#dd4444");
-      bodyGrad.addColorStop(0.7, "#dd4444");
-      bodyGrad.addColorStop(1, "#aa2222");
+      bodyGrad.addColorStop(0, "#aa2222"); bodyGrad.addColorStop(0.3, "#dd4444");
+      bodyGrad.addColorStop(0.7, "#dd4444"); bodyGrad.addColorStop(1, "#aa2222");
     }
     ctx.fillStyle = bodyGrad;
     ctx.beginPath();
     ctx.roundRect(-s/2 + 4, -s/3 + sway, s - 8, s * 0.62, 4);
     ctx.fill();
-
-    // Armor plate line
+    // Armor line
     ctx.strokeStyle = "rgba(255,255,255,0.15)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(-s/2 + 8, -s/4 + sway);
     ctx.lineTo(s/2 - 8, -s/4 + sway);
     ctx.stroke();
-
-    // Body highlight
+    // Highlight
     ctx.fillStyle = "rgba(255,255,255,0.1)";
     ctx.fillRect(-s/2 + 6, -s/3 + 2 + sway, s - 12, 5);
 
-    // Turret (tank dome)
+    // Exhaust smoke (rear = opposite of bodyAngle, in world coords)
+    if (this.isPlayer && (this.lastMx !== 0 || this.lastMy !== 0)) {
+      if (Math.random() < 0.3) {
+        const rearAngle = this.bodyAngle + Math.PI;
+        particles.push({
+          x: this.x + Math.cos(rearAngle) * s/3,
+          y: this.y + Math.sin(rearAngle) * s/3 + sway,
+          vx: Math.cos(rearAngle) * (0.5 + Math.random()) + (Math.random() - 0.5) * 0.3,
+          vy: Math.sin(rearAngle) * (0.5 + Math.random()) + (Math.random() - 0.5) * 0.3,
+          life: 20 + Math.random() * 15, maxLife: 35,
+          color: "#888899", size: 3 + Math.random() * 4, type: "smoke",
+        });
+      }
+    }
+    ctx.restore();
+
+    // === TURRET (rotates with turretAngle) ===
+    ctx.save();
+    ctx.rotate(this.turretAngle);
+
     const turretR = s/4.2;
     const turretColor = this.isPlayer ? "#2277cc" : "#cc3333";
     ctx.fillStyle = turretColor;
     ctx.beginPath();
-    ctx.arc(dir * 2, -1 + sway, turretR, 0, Math.PI * 2);
+    ctx.arc(0, 0, turretR, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = "rgba(0,0,0,0.25)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
-
     // Turret highlight
     ctx.fillStyle = "rgba(255,255,255,0.12)";
     ctx.beginPath();
-    ctx.arc(dir * 2, -3 + sway, turretR * 0.45, 0, Math.PI * 2);
+    ctx.arc(0, -2, turretR * 0.45, 0, Math.PI * 2);
     ctx.fill();
 
     // Barrel
@@ -569,56 +585,54 @@ class RobotArena {
     ctx.shadowColor = this.shootFlash > 0 ? "#ffdd44" : "transparent";
     ctx.shadowBlur = this.shootFlash > 0 ? 20 : 0;
     ctx.beginPath();
-    ctx.moveTo(dir * 4, -1 + sway);
-    ctx.lineTo(dir * barrelLen, -1 + sway);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(barrelLen, 0);
     ctx.stroke();
-
     // Barrel highlight
     ctx.strokeStyle = "rgba(255,255,255,0.08)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(dir * 6, -3 + sway);
-    ctx.lineTo(dir * (barrelLen - 2), -3 + sway);
+    ctx.moveTo(2, -2);
+    ctx.lineTo(barrelLen - 2, -2);
     ctx.stroke();
-
     // Barrel tip
     ctx.fillStyle = "#222233";
-    ctx.fillRect(dir * barrelLen - dir * 4, -4 + sway, 6, 7);
+    ctx.fillRect(barrelLen - 4, -4, 6, 7);
 
     // Muzzle flash
     if (this.shootFlash > 0) {
       const intensity = this.shootFlash / 8;
       ctx.shadowColor = "#ffdd44";
       ctx.shadowBlur = 40;
-      ctx.fillStyle = `rgba(255, 221, 68, ${intensity * 0.8})`;
+      ctx.fillStyle = 'rgba(255, 221, 68, ' + (intensity * 0.8) + ')';
       ctx.beginPath();
-      ctx.arc(dir * (barrelLen + 3), -1 + sway, 10 * intensity, 0, Math.PI * 2);
+      ctx.arc(barrelLen + 3, 0, 10 * intensity, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = `rgba(255, 255, 255, ${intensity * 0.5})`;
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + (intensity * 0.5) + ')';
       ctx.beginPath();
-      ctx.arc(dir * (barrelLen + 3), -1 + sway, 5 * intensity, 0, Math.PI * 2);
+      ctx.arc(barrelLen + 3, 0, 5 * intensity, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
     }
+    ctx.restore();
 
+    // === FIXED EFFECTS (not rotated) ===
     ctx.shadowBlur = 0;
-
-    // === STUN ICON ===
     if (this.stunned) {
       ctx.font = "18px monospace";
       ctx.textAlign = "center";
       ctx.fillStyle = "#ff66aa";
       ctx.shadowColor = "#ff66aa";
       ctx.shadowBlur = 20;
-      ctx.fillText("⚡", 0, -s/2 - 10);
+      ctx.fillText("\u26A1", 0, -s/2 - 10);
       ctx.shadowBlur = 0;
     }
 
-    // Name
-    ctx.fillStyle = `rgba(255,255,255,${this.hp > 0 ? 0.7 : 0.3})`;
+    ctx.fillStyle = 'rgba(255,255,255,' + (this.hp > 0 ? 0.7 : 0.3) + ')';
     ctx.font = "bold 10px monospace";
     ctx.textAlign = "center";
     ctx.fillText(this.name, 0, s/2 + 16);
+    ctx.shadowBlur = 0;
 
     ctx.restore();
   }
