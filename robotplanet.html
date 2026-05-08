@@ -14,20 +14,30 @@
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    min-height: 100dvh;
     overflow: hidden;
     user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    -webkit-touch-callout: none;
   }
-  .wrapper { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .wrapper { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; max-width: 820px; padding: 0 4px; }
   canvas {
     border: 2px solid #4a4aff;
     border-radius: 12px;
     cursor: crosshair;
     display: block;
+    width: 100%;
+    max-width: 800px;
+    height: auto;
+    aspect-ratio: 800 / 500;
+    touch-action: none;
   }
   .panel {
-    width: 800px;
+    width: 100%;
+    max-width: 800px;
     display: flex;
-    gap: 10px;
+    gap: 6px;
     align-items: center;
     flex-wrap: wrap;
   }
@@ -36,7 +46,7 @@
     background: rgba(20,20,60,0.9);
     border: 1px solid #3a3a8a;
     border-radius: 8px;
-    padding: 4px 8px;
+    padding: 6px 4px;
     color: #e0e0ff;
     cursor: pointer;
     font-family: inherit;
@@ -44,8 +54,12 @@
     text-align: center;
     transition: all 0.1s;
     flex: 1;
+    min-width: 0;
   }
   .w-btn:hover { border-color: #6a6aff; background: rgba(40,40,100,0.9); }
+  .touch-mode .w-btn { padding: 10px 4px; font-size: 13px; }
+  .touch-mode .w-btn .key { font-size: 11px; }
+  .touch-mode .w-btn .wname { font-size: 14px; }
   .w-btn.active {
     border-color: #ffdd44;
     background: rgba(80,70,30,0.9);
@@ -55,7 +69,7 @@
   .w-btn .wname { font-weight: bold; font-size: 12px; }
   .w-btn.active .wname { color: #ffdd44; text-shadow: 0 0 10px rgba(255,221,68,0.5); }
 
-  .hp-section { width: 800px; display: flex; flex-direction: column; gap: 3px; }
+  .hp-section { width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 2px; }
   .hp-row { display: flex; gap: 8px; align-items: center; }
   .hp-label { font-weight: bold; font-size: 12px; min-width: 90px; white-space: nowrap; }
   .hp-label.player { color: #44ff88; text-shadow: 0 0 10px rgba(68,255,136,0.3); }
@@ -106,7 +120,67 @@
     font-size: 10px;
   }
 
-  .canvas-wrap { position: relative; width: 800px; height: 500px; }
+  .mode-btn {
+    background: rgba(20,20,60,0.9); border: 1px solid #3a3a8a;
+    border-radius: 8px; padding: 8px 14px; color: #e0e0ff;
+    font-size: 13px; cursor: pointer; font-family: inherit;
+    transition: all 0.15s;
+  }
+  .mode-btn:hover { border-color: #6a6aff; }
+  .mode-btn.active { border-color: #44ff88; background: rgba(30,80,50,0.9); box-shadow: 0 0 15px rgba(68,255,136,0.3); }
+
+  #fireBtn {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: rgba(255,50,50,0.7);
+    border: 3px solid rgba(255,100,100,0.9);
+    color: #fff;
+    font-size: 13px;
+    font-weight: bold;
+    font-family: inherit;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    box-shadow: 0 0 25px rgba(255,0,0,0.4);
+    touch-action: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  #fireBtn:active { transform: scale(0.9); background: rgba(255,0,0,0.9); }
+  #fireBtn.show { display: flex; }
+
+  .touch-joystick-area {
+    position: absolute;
+    bottom: 15px;
+    left: 15px;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    touch-action: none;
+    pointer-events: none;
+  }
+  .touch-joystick-area.show { display: flex; }
+  .touch-joystick-knob {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    pointer-events: none;
+  }
+
+  .canvas-wrap { position: relative; width: 100%; max-width: 800px; aspect-ratio: 800 / 500; }
   .overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -206,6 +280,8 @@
   <div class="canvas-wrap">
     <canvas id="arena" width="800" height="500"></canvas>
     <div class="combo-display" id="comboDisplay"></div>
+    <button id="fireBtn">🔥<br>SCHIET</button>
+    <div class="touch-joystick-area" id="joystickArea"><div class="touch-joystick-knob" id="joystickKnob"></div></div>
     <div class="start-screen" id="startScreen">
       <h1>⚡ ROBOTPLANET</h1>
       <div class="tagline">— BATTLE ARENA —</div>
@@ -215,6 +291,11 @@
         <button class="enemy-btn active" onclick="setEnemyCount(1)">1</button>
         <button class="enemy-btn" onclick="setEnemyCount(2)">2</button>
         <button class="enemy-btn" onclick="setEnemyCount(3)">3</button>
+      </div>
+      <div class="enemy-select" style="margin-bottom:18px">
+        <span>Besturing:</span>
+        <button class="mode-btn active" onclick="setControlMode('kbm')">Toetsenbord + Muis</button>
+        <button class="mode-btn" onclick="setControlMode('touch')">Touchscreen</button>
       </div>
       <button class="btn" onclick="startGame()">VECHT</button>
     </div>
@@ -228,7 +309,7 @@
 
   <div class="panel">
     <div class="weapon-bar" id="weaponBar"></div>
-    <div class="controls-hint">
+    <div class="controls-hint" id="controlsHint">
       <kbd>W A S D</kbd> bewegen &nbsp;|&nbsp; <kbd>1-5</kbd> wapen &nbsp;|&nbsp; <kbd>Klik</kbd> / <kbd>Spatie</kbd> schiet
     </div>
   </div>
@@ -276,6 +357,9 @@ var comboCount = 0, comboTimer = 0, roundCount = 0, killCount = 0;
 var enemyCount = 1;
 var bgStars = [];
 var mouseX = 400, mouseY = 250;
+var controlMode = 'kbm';
+var touchMoveX = -1, touchMoveY = -1;
+var touchFire = false;
 
 for (var i = 0; i < 60; i++) {
   bgStars.push({ x: Math.random() * W, y: Math.random() * H, r: 0.5 + Math.random() * 1.5, s: 0.5 + Math.random() * 1 });
@@ -286,6 +370,54 @@ document.addEventListener('mousemove', function(e) {
   mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
   mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
 });
+
+function setControlMode(mode) {
+  controlMode = mode;
+  var btns = document.querySelectorAll('.mode-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].className = 'mode-btn' + (btns[i].getAttribute('onclick').indexOf("'" + mode + "'") !== -1 ? ' active' : '');
+  }
+}
+
+// Touch handling
+canvas.addEventListener('touchstart', handleTouch, { passive: false });
+canvas.addEventListener('touchmove', handleTouch, { passive: false });
+canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+function handleTouch(e) {
+  if (controlMode !== 'touch' || !gameActive) return;
+  e.preventDefault();
+  var rect = canvas.getBoundingClientRect();
+  var scaleX = canvas.width / rect.width;
+  var scaleY = canvas.height / rect.height;
+  var touches = e.touches;
+  touchMoveX = -1; touchMoveY = -1;
+  touchFire = false;
+  for (var i = 0; i < touches.length; i++) {
+    var tx = (touches[i].clientX - rect.left) * scaleX;
+    var ty = (touches[i].clientY - rect.top) * scaleY;
+    // If on right half or near bottom-right, it's a fire touch
+    if (tx > canvas.width * 0.55 || ty > canvas.height * 0.7) {
+      // Fire
+      touchFire = true;
+      mouseX = tx;
+      mouseY = ty;
+    } else {
+      // Move
+      touchMoveX = tx;
+      touchMoveY = ty;
+      mouseX = tx;
+      mouseY = ty;
+    }
+  }
+}
+
+function handleTouchEnd(e) {
+  if (controlMode !== 'touch') return;
+  touchMoveX = -1;
+  touchMoveY = -1;
+  touchFire = false;
+}
 
 function setEnemyCount(n) {
   enemyCount = n;
@@ -370,17 +502,40 @@ class RobotArena {
       }
     } else {
       var mx = 0, my = 0;
-      if (keys['w'] || keys['arrowup']) my = -1;
-      if (keys['s'] || keys['arrowdown']) my = 1;
-      if (keys['a'] || keys['arrowleft']) mx = -1;
-      if (keys['d'] || keys['arrowright']) mx = 1;
-      if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; }
-      this.x += mx * this.speed;
-      this.y += my * this.speed;
-      if (mx !== 0 || my !== 0) this.bodyAngle = Math.atan2(my, mx);
-      var tdx = mouseX - this.x;
-      var tdy = mouseY - this.y;
-      if (Math.sqrt(tdx*tdx + tdy*tdy) > 5) this.turretAngle = Math.atan2(tdy, tdx);
+      if (controlMode === 'touch') {
+        if (touchMoveX >= 0 && touchMoveY >= 0) {
+          var tdx = touchMoveX - this.x;
+          var tdy = touchMoveY - this.y;
+          var tdist = Math.sqrt(tdx*tdx + tdy*tdy);
+          if (tdist > 8) {
+            mx = tdx / tdist;
+            my = tdy / tdist;
+          }
+        }
+        // Auto-aim turret at nearest enemy
+        var nearest = null, nearDist = Infinity;
+        for (var ei = 0; ei < enemies.length; ei++) {
+          if (!enemies[ei].alive()) continue;
+          var edx = enemies[ei].x - this.x;
+          var edy = enemies[ei].y - this.y;
+          var edist = edx*edx + edy*edy;
+          if (edist < nearDist) { nearDist = edist; nearest = enemies[ei]; }
+        }
+        if (nearest) {
+          var adx = nearest.x - this.x;
+          var ady = nearest.y - this.y;
+          this.turretAngle = Math.atan2(ady, adx);
+        }
+      } else {
+        if (keys['w'] || keys['arrowup']) my = -1;
+        if (keys['s'] || keys['arrowdown']) my = 1;
+        if (keys['a'] || keys['arrowleft']) mx = -1;
+        if (keys['d'] || keys['arrowright']) mx = 1;
+        if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; }
+        var tdx = mouseX - this.x;
+        var tdy = mouseY - this.y;
+        if (Math.sqrt(tdx*tdx + tdy*tdy) > 5) this.turretAngle = Math.atan2(tdy, tdx);
+      }
       this.lastMx = mx;
       this.lastMy = my;
     }
@@ -581,6 +736,20 @@ function startGame() {
   shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0;
   screenShake.intensity = 0;
   document.getElementById('startScreen').style.display = 'none';
+  // Show/hide touch controls
+  var fireBtn = document.getElementById('fireBtn');
+  var joyArea = document.getElementById('joystickArea');
+  if (controlMode === 'touch') {
+    fireBtn.classList.add('show');
+    joyArea.classList.add('show');
+    document.getElementById('controlsHint').innerHTML = 'Sleep om te bewegen &nbsp;|&nbsp; <kbd>1-5</kbd> wapen &nbsp;|&nbsp; Rode knop = schiet';
+    document.querySelector('.weapon-bar').classList.add('touch-mode');
+  } else {
+    fireBtn.classList.remove('show');
+    joyArea.classList.remove('show');
+    document.getElementById('controlsHint').innerHTML = '<kbd>W A S D</kbd> bewegen &nbsp;|&nbsp; <kbd>1-5</kbd> wapen &nbsp;|&nbsp; <kbd>Klik</kbd> / <kbd>Spatie</kbd> schiet';
+    document.querySelector('.weapon-bar').classList.remove('touch-mode');
+  }
   updateWeaponBar();
   buildEnemyHpBars();
   updateHP();
@@ -626,8 +795,27 @@ document.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = fal
 
 canvas.addEventListener('click', function(e) {
   if (!gameActive || !player || !player.alive() || !canShoot) return;
+  if (controlMode === 'touch') return; // touch uses fire button
   playerShoot();
 });
+
+// Fire button for touch
+document.getElementById('fireBtn').addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (gameActive && player && player.alive() && canShoot) playerShoot();
+}, { passive: false });
+document.getElementById('fireBtn').addEventListener('mousedown', function(e) {
+  if (gameActive && player && player.alive() && canShoot) playerShoot();
+});
+
+// Auto-fire on touch release in move area
+function checkTouchFire() {
+  if (controlMode === 'touch' && touchFire && gameActive && player && player.alive() && canShoot) {
+    playerShoot();
+    touchFire = false;
+  }
+}
 
 function playerShoot() {
   var w = weapons[selectedWeapon];
@@ -967,6 +1155,7 @@ function gameLoop() {
   if (gameActive) {
     if (!canShoot) { shootCooldown--; if (shootCooldown <= 0) canShoot = true; }
     if (comboTimer > 0) comboTimer--;
+    if (controlMode === 'touch' && canShoot && player && player.alive()) checkTouchFire();
     updateAI();
     updateProjectiles();
     player.update();
