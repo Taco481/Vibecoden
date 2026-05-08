@@ -379,10 +379,13 @@ function setControlMode(mode) {
   }
 }
 
+var touchIds = { move: -1, fire: -1 };
+
 // Touch handling
 canvas.addEventListener('touchstart', handleTouch, { passive: false });
 canvas.addEventListener('touchmove', handleTouch, { passive: false });
 canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 
 function handleTouch(e) {
   if (controlMode !== 'touch' || !gameActive) return;
@@ -390,33 +393,51 @@ function handleTouch(e) {
   var rect = canvas.getBoundingClientRect();
   var scaleX = canvas.width / rect.width;
   var scaleY = canvas.height / rect.height;
-  var touches = e.touches;
-  touchMoveX = -1; touchMoveY = -1;
-  touchFire = false;
-  for (var i = 0; i < touches.length; i++) {
-    var tx = (touches[i].clientX - rect.left) * scaleX;
-    var ty = (touches[i].clientY - rect.top) * scaleY;
-    // If on right half or near bottom-right, it's a fire touch
+  var fireBtnRect = document.getElementById('fireBtn').getBoundingClientRect();
+  var activeMove = false, activeFire = false;
+  for (var i = 0; i < e.touches.length; i++) {
+    var t = e.touches[i];
+    var tx = (t.clientX - rect.left) * scaleX;
+    var ty = (t.clientY - rect.top) * scaleY;
+    // Skip if touch is on the fire button
+    if (t.clientX >= fireBtnRect.left && t.clientX <= fireBtnRect.right &&
+        t.clientY >= fireBtnRect.top && t.clientY <= fireBtnRect.bottom) {
+      continue;
+    }
     if (tx > canvas.width * 0.55 || ty > canvas.height * 0.7) {
-      // Fire
+      // Fire touch (right side or bottom)
+      activeFire = true;
       touchFire = true;
+      touchIds.fire = t.identifier;
       mouseX = tx;
       mouseY = ty;
     } else {
-      // Move
+      // Move touch (left side)
+      activeMove = true;
       touchMoveX = tx;
       touchMoveY = ty;
+      touchIds.move = t.identifier;
       mouseX = tx;
       mouseY = ty;
     }
   }
+  // If a touch type is no longer in the list, clear it
+  if (!activeMove) { touchMoveX = -1; touchMoveY = -1; touchIds.move = -1; }
+  if (!activeFire) { touchFire = false; touchIds.fire = -1; }
 }
 
 function handleTouchEnd(e) {
   if (controlMode !== 'touch') return;
+  // Process remaining touches first
+  if (e.touches.length > 0) {
+    handleTouch(e);
+    return;
+  }
   touchMoveX = -1;
   touchMoveY = -1;
   touchFire = false;
+  touchIds.move = -1;
+  touchIds.fire = -1;
 }
 
 function setEnemyCount(n) {
