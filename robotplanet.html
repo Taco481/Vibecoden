@@ -155,31 +155,6 @@
   #fireBtn:active { transform: scale(0.9); background: rgba(255,0,0,0.9); }
   #fireBtn.show { display: flex; }
 
-  .touch-joystick-area {
-    position: absolute;
-    bottom: 15px;
-    left: 15px;
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.08);
-    border: 2px solid rgba(255,255,255,0.15);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 3;
-    touch-action: none;
-    pointer-events: none;
-  }
-  .touch-joystick-area.show { display: flex; }
-  .touch-joystick-knob {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.25);
-    pointer-events: none;
-  }
-
   .canvas-wrap { position: relative; width: 100%; max-width: 800px; aspect-ratio: 800 / 500; }
   .overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -281,7 +256,6 @@
     <canvas id="arena" width="800" height="500"></canvas>
     <div class="combo-display" id="comboDisplay"></div>
     <button id="fireBtn">🔥<br>SCHIET</button>
-    <div class="touch-joystick-area" id="joystickArea"><div class="touch-joystick-knob" id="joystickKnob"></div></div>
     <div class="start-screen" id="startScreen">
       <h1>⚡ ROBOTPLANET</h1>
       <div class="tagline">— BATTLE ARENA —</div>
@@ -358,8 +332,10 @@ var enemyCount = 1;
 var bgStars = [];
 var mouseX = 400, mouseY = 250;
 var controlMode = 'kbm';
-var touchMoveX = -1, touchMoveY = -1;
+var joystick = { active: false, centerX: 0, centerY: 0, dx: 0, dy: 0, dist: 0, touchId: -1 };
 var touchFire = false;
+var touchFireHeld = false;
+var touchFireId = -1;
 
 for (var i = 0; i < 60; i++) {
   bgStars.push({ x: Math.random() * W, y: Math.random() * H, r: 0.5 + Math.random() * 1.5, s: 0.5 + Math.random() * 1 });
@@ -379,8 +355,6 @@ function setControlMode(mode) {
   }
 }
 
-var touchIds = { move: -1, fire: -1 };
-
 // Touch handling
 canvas.addEventListener('touchstart', handleTouch, { passive: false });
 canvas.addEventListener('touchmove', handleTouch, { passive: false });
@@ -394,7 +368,7 @@ function handleTouch(e) {
   var scaleX = canvas.width / rect.width;
   var scaleY = canvas.height / rect.height;
   var fireBtnRect = document.getElementById('fireBtn').getBoundingClientRect();
-  var activeMove = false, activeFire = false;
+  var activeJoystick = false, activeFireHeld = false;
   for (var i = 0; i < e.touches.length; i++) {
     var t = e.touches[i];
     var tx = (t.clientX - rect.left) * scaleX;
@@ -404,40 +378,71 @@ function handleTouch(e) {
         t.clientY >= fireBtnRect.top && t.clientY <= fireBtnRect.bottom) {
       continue;
     }
-    if (tx > canvas.width * 0.55 || ty > canvas.height * 0.7) {
-      // Fire touch (right side or bottom)
-      activeFire = true;
-      touchFire = true;
-      touchIds.fire = t.identifier;
-      mouseX = tx;
-      mouseY = ty;
+    if (tx > canvas.width * 0.5) {
+      // Right side — fire zone
+      activeFireHeld = true;
+      if (t.identifier !== touchFireId) {
+        touchFire = true;
+        touchFireHeld = true;
+        touchFireId = t.identifier;
+      }
     } else {
-      // Move touch (left side)
-      activeMove = true;
-      touchMoveX = tx;
-      touchMoveY = ty;
-      touchIds.move = t.identifier;
-      mouseX = tx;
-      mouseY = ty;
+      // Left side — joystick
+      activeJoystick = true;
+      if (t.identifier !== joystick.touchId) {
+        // New joystick touch — init center
+        joystick.active = true;
+        joystick.centerX = tx;
+        joystick.centerY = ty;
+        joystick.dx = 0;
+        joystick.dy = 0;
+        joystick.dist = 0;
+        joystick.touchId = t.identifier;
+      } else {
+        // Existing joystick touch — update direction
+        var ddx = tx - joystick.centerX;
+        var ddy = ty - joystick.centerY;
+        var dist = Math.sqrt(ddx*ddx + ddy*ddy);
+        var maxDist = 60;
+        var clamped = Math.min(dist, maxDist);
+        joystick.dist = clamped / maxDist;
+        if (dist > 5) {
+          joystick.dx = ddx / dist;
+          joystick.dy = ddy / dist;
+        } else {
+          joystick.dx = 0;
+          joystick.dy = 0;
+        }
+      }
     }
   }
-  // If a touch type is no longer in the list, clear it
-  if (!activeMove) { touchMoveX = -1; touchMoveY = -1; touchIds.move = -1; }
-  if (!activeFire) { touchFire = false; touchIds.fire = -1; }
+  if (!activeJoystick) {
+    joystick.active = false;
+    joystick.dx = 0;
+    joystick.dy = 0;
+    joystick.dist = 0;
+    joystick.touchId = -1;
+  }
+  if (!activeFireHeld) {
+    touchFireHeld = false;
+    touchFireId = -1;
+  }
 }
 
 function handleTouchEnd(e) {
   if (controlMode !== 'touch') return;
-  // Process remaining touches first
   if (e.touches.length > 0) {
     handleTouch(e);
     return;
   }
-  touchMoveX = -1;
-  touchMoveY = -1;
+  joystick.active = false;
+  joystick.dx = 0;
+  joystick.dy = 0;
+  joystick.dist = 0;
+  joystick.touchId = -1;
   touchFire = false;
-  touchIds.move = -1;
-  touchIds.fire = -1;
+  touchFireHeld = false;
+  touchFireId = -1;
 }
 
 function setEnemyCount(n) {
@@ -524,14 +529,9 @@ class RobotArena {
     } else {
       var mx = 0, my = 0;
       if (controlMode === 'touch') {
-        if (touchMoveX >= 0 && touchMoveY >= 0) {
-          var tdx = touchMoveX - this.x;
-          var tdy = touchMoveY - this.y;
-          var tdist = Math.sqrt(tdx*tdx + tdy*tdy);
-          if (tdist > 8) {
-            mx = tdx / tdist;
-            my = tdy / tdist;
-          }
+        if (joystick.active) {
+          mx = joystick.dx * joystick.dist;
+          my = joystick.dy * joystick.dist;
         }
         // Auto-aim turret at nearest enemy
         var nearest = null, nearDist = Infinity;
@@ -557,6 +557,9 @@ class RobotArena {
         var tdy = mouseY - this.y;
         if (Math.sqrt(tdx*tdx + tdy*tdy) > 5) this.turretAngle = Math.atan2(tdy, tdx);
       }
+      this.x += mx * this.speed;
+      this.y += my * this.speed;
+      if (mx !== 0 || my !== 0) this.bodyAngle = Math.atan2(my, mx);
       this.lastMx = mx;
       this.lastMy = my;
     }
@@ -759,15 +762,12 @@ function startGame() {
   document.getElementById('startScreen').style.display = 'none';
   // Show/hide touch controls
   var fireBtn = document.getElementById('fireBtn');
-  var joyArea = document.getElementById('joystickArea');
   if (controlMode === 'touch') {
     fireBtn.classList.add('show');
-    joyArea.classList.add('show');
-    document.getElementById('controlsHint').innerHTML = 'Sleep om te bewegen &nbsp;|&nbsp; <kbd>1-5</kbd> wapen &nbsp;|&nbsp; Rode knop = schiet';
+    document.getElementById('controlsHint').innerHTML = 'Joystick = bewegen &nbsp;|&nbsp; <kbd>1-5</kbd> wapen &nbsp;|&nbsp; Rode knop / rechts tikken = schiet';
     document.querySelector('.weapon-bar').classList.add('touch-mode');
   } else {
     fireBtn.classList.remove('show');
-    joyArea.classList.remove('show');
     document.getElementById('controlsHint').innerHTML = '<kbd>W A S D</kbd> bewegen &nbsp;|&nbsp; <kbd>1-5</kbd> wapen &nbsp;|&nbsp; <kbd>Klik</kbd> / <kbd>Spatie</kbd> schiet';
     document.querySelector('.weapon-bar').classList.remove('touch-mode');
   }
@@ -832,7 +832,7 @@ document.getElementById('fireBtn').addEventListener('mousedown', function(e) {
 
 // Auto-fire on touch release in move area
 function checkTouchFire() {
-  if (controlMode === 'touch' && touchFire && gameActive && player && player.alive() && canShoot) {
+  if (controlMode === 'touch' && (touchFire || touchFireHeld) && gameActive && player && player.alive() && canShoot) {
     playerShoot();
     touchFire = false;
   }
@@ -1160,6 +1160,21 @@ function drawHUD() {
   }
 }
 
+function drawJoystick() {
+  var cx = joystick.centerX, cy = joystick.centerY;
+  var maxDist = 60;
+  var knobX = cx + joystick.dx * maxDist * joystick.dist;
+  var knobY = cy + joystick.dy * maxDist * joystick.dist;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, 50, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath(); ctx.arc(knobX, knobY, 18, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.beginPath(); ctx.arc(knobX, knobY, 8, 0, Math.PI * 2); ctx.fill();
+}
+
 function gameLoop() {
   if (screenShake.intensity > 0) {
     screenShake.x = (Math.random() - 0.5) * screenShake.intensity * 2;
@@ -1200,6 +1215,7 @@ function gameLoop() {
 
   if (gameActive) drawHUD();
   ctx.restore();
+  if (controlMode === 'touch' && joystick.active) drawJoystick();
   updateHP();
   requestAnimationFrame(gameLoop);
 }
