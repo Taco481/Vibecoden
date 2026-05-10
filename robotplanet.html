@@ -333,9 +333,11 @@ var bgStars = [];
 var mouseX = 400, mouseY = 250;
 var controlMode = 'kbm';
 var joystick = { active: false, centerX: 0, centerY: 0, dx: 0, dy: 0, dist: 0, touchId: -1 };
-var touchFire = false;
-var touchFireHeld = false;
-var touchFireId = -1;
+var aimActive = false;
+var aimDragged = false;
+var aimTouchId = -1;
+var aimX = 0, aimY = 0;
+var fireBtnHeld = false;
 
 for (var i = 0; i < 60; i++) {
   bgStars.push({ x: Math.random() * W, y: Math.random() * H, r: 0.5 + Math.random() * 1.5, s: 0.5 + Math.random() * 1 });
@@ -368,29 +370,35 @@ function handleTouch(e) {
   var scaleX = canvas.width / rect.width;
   var scaleY = canvas.height / rect.height;
   var fireBtnRect = document.getElementById('fireBtn').getBoundingClientRect();
-  var activeJoystick = false, activeFireHeld = false;
+  var activeJoystick = false, activeAim = false;
   for (var i = 0; i < e.touches.length; i++) {
     var t = e.touches[i];
     var tx = (t.clientX - rect.left) * scaleX;
     var ty = (t.clientY - rect.top) * scaleY;
-    // Skip if touch is on the fire button
     if (t.clientX >= fireBtnRect.left && t.clientX <= fireBtnRect.right &&
         t.clientY >= fireBtnRect.top && t.clientY <= fireBtnRect.bottom) {
       continue;
     }
     if (tx > canvas.width * 0.5) {
-      // Right side — fire zone
-      activeFireHeld = true;
-      if (t.identifier !== touchFireId) {
-        touchFire = true;
-        touchFireHeld = true;
-        touchFireId = t.identifier;
+      // Right side — aim zone
+      activeAim = true;
+      aimActive = true;
+      if (t.identifier !== aimTouchId) {
+        aimTouchId = t.identifier;
+        aimDragged = false;
+        aimX = tx;
+        aimY = ty;
+      } else {
+        var adx = tx - aimX;
+        var ady = ty - aimY;
+        if (adx*adx + ady*ady > 100) aimDragged = true;
+        aimX = tx;
+        aimY = ty;
       }
     } else {
       // Left side — joystick
       activeJoystick = true;
       if (t.identifier !== joystick.touchId) {
-        // New joystick touch — init center
         joystick.active = true;
         joystick.centerX = tx;
         joystick.centerY = ty;
@@ -399,7 +407,6 @@ function handleTouch(e) {
         joystick.dist = 0;
         joystick.touchId = t.identifier;
       } else {
-        // Existing joystick touch — update direction
         var ddx = tx - joystick.centerX;
         var ddy = ty - joystick.centerY;
         var dist = Math.sqrt(ddx*ddx + ddy*ddy);
@@ -423,14 +430,25 @@ function handleTouch(e) {
     joystick.dist = 0;
     joystick.touchId = -1;
   }
-  if (!activeFireHeld) {
-    touchFireHeld = false;
-    touchFireId = -1;
+  if (!activeAim) {
+    aimActive = false;
   }
 }
 
 function handleTouchEnd(e) {
   if (controlMode !== 'touch') return;
+  // Check if an aim touch ended — fire on release
+  for (var ci = 0; ci < e.changedTouches.length; ci++) {
+    if (e.changedTouches[ci].identifier === aimTouchId && aimActive) {
+      if (aimDragged) {
+        // Manual aim: fire at where user aimed
+        playerShootAt(aimX, aimY);
+      } else {
+        // Tap: auto-aim + fire
+        playerShootAuto();
+      }
+    }
+  }
   if (e.touches.length > 0) {
     handleTouch(e);
     return;
@@ -440,9 +458,9 @@ function handleTouchEnd(e) {
   joystick.dy = 0;
   joystick.dist = 0;
   joystick.touchId = -1;
-  touchFire = false;
-  touchFireHeld = false;
-  touchFireId = -1;
+  aimActive = false;
+  aimDragged = false;
+  aimTouchId = -1;
 }
 
 function setEnemyCount(n) {
@@ -533,19 +551,24 @@ class RobotArena {
           mx = joystick.dx * joystick.dist;
           my = joystick.dy * joystick.dist;
         }
-        // Auto-aim turret at nearest enemy
-        var nearest = null, nearDist = Infinity;
-        for (var ei = 0; ei < enemies.length; ei++) {
-          if (!enemies[ei].alive()) continue;
-          var edx = enemies[ei].x - this.x;
-          var edy = enemies[ei].y - this.y;
-          var edist = edx*edx + edy*edy;
-          if (edist < nearDist) { nearDist = edist; nearest = enemies[ei]; }
-        }
-        if (nearest) {
-          var adx = nearest.x - this.x;
-          var ady = nearest.y - this.y;
-          this.turretAngle = Math.atan2(ady, adx);
+        if (aimActive) {
+          var adx = aimX - this.x;
+          var ady = aimY - this.y;
+          if (Math.sqrt(adx*adx + ady*ady) > 5) this.turretAngle = Math.atan2(ady, adx);
+        } else {
+          var nearest = null, nearDist = Infinity;
+          for (var ei = 0; ei < enemies.length; ei++) {
+            if (!enemies[ei].alive()) continue;
+            var edx = enemies[ei].x - this.x;
+            var edy = enemies[ei].y - this.y;
+            var edist = edx*edx + edy*edy;
+            if (edist < nearDist) { nearDist = edist; nearest = enemies[ei]; }
+          }
+          if (nearest) {
+            var adx = nearest.x - this.x;
+            var ady = nearest.y - this.y;
+            this.turretAngle = Math.atan2(ady, adx);
+          }
         }
       } else {
         if (keys['w'] || keys['arrowup']) my = -1;
@@ -764,7 +787,7 @@ function startGame() {
   var fireBtn = document.getElementById('fireBtn');
   if (controlMode === 'touch') {
     fireBtn.classList.add('show');
-    document.getElementById('controlsHint').innerHTML = 'Joystick = bewegen &nbsp;|&nbsp; <kbd>1-5</kbd> wapen &nbsp;|&nbsp; Rode knop / rechts tikken = schiet';
+    document.getElementById('controlsHint').innerHTML = 'Joystick = bewegen &nbsp;|&nbsp; <kbd>1-5</kbd> wapen &nbsp;|&nbsp; Rode knop = schiet &nbsp;|&nbsp; Rechts slepen = mikken, los = schiet';
     document.querySelector('.weapon-bar').classList.add('touch-mode');
   } else {
     fireBtn.classList.remove('show');
@@ -824,19 +847,42 @@ canvas.addEventListener('click', function(e) {
 document.getElementById('fireBtn').addEventListener('touchstart', function(e) {
   e.preventDefault();
   e.stopPropagation();
+  fireBtnHeld = true;
   if (gameActive && player && player.alive() && canShoot) playerShoot();
 }, { passive: false });
+document.getElementById('fireBtn').addEventListener('touchend', function(e) {
+  fireBtnHeld = false;
+});
+document.getElementById('fireBtn').addEventListener('touchcancel', function(e) {
+  fireBtnHeld = false;
+});
 document.getElementById('fireBtn').addEventListener('mousedown', function(e) {
   if (gameActive && player && player.alive() && canShoot) playerShoot();
 });
+document.getElementById('fireBtn').addEventListener('mouseup', function(e) {
+  fireBtnHeld = false;
+});
 
-// Auto-fire on touch release in move area
-function checkTouchFire() {
-  if (controlMode === 'touch' && (touchFire || touchFireHeld) && gameActive && player && player.alive() && canShoot) {
-    playerShoot();
-    touchFire = false;
-  }
+function playerShootAt(x, y) {
+  mouseX = x; mouseY = y;
+  playerShoot();
 }
+
+function playerShootAuto() {
+  if (!player) return;
+  var nearest = null, nearDist = Infinity;
+  for (var ei = 0; ei < enemies.length; ei++) {
+    if (!enemies[ei].alive()) continue;
+    var dx = enemies[ei].x - player.x;
+    var dy = enemies[ei].y - player.y;
+    var d = dx*dx + dy*dy;
+    if (d < nearDist) { nearDist = d; nearest = enemies[ei]; }
+  }
+  if (nearest) { mouseX = nearest.x; mouseY = nearest.y; }
+  playerShoot();
+}
+
+// Fire button auto-fire in game loop
 
 function playerShoot() {
   var w = weapons[selectedWeapon];
@@ -1175,6 +1221,19 @@ function drawJoystick() {
   ctx.beginPath(); ctx.arc(knobX, knobY, 8, 0, Math.PI * 2); ctx.fill();
 }
 
+function drawAimLine() {
+  if (!player || !player.alive() || !aimActive) return;
+  ctx.save();
+  ctx.strokeStyle = aimDragged ? 'rgba(255,100,100,0.5)' : 'rgba(255,255,100,0.3)';
+  ctx.lineWidth = aimDragged ? 1.5 : 1;
+  ctx.setLineDash([6, 8]);
+  ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(aimX, aimY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,255,100,0.4)';
+  ctx.beginPath(); ctx.arc(aimX, aimY, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 function gameLoop() {
   if (screenShake.intensity > 0) {
     screenShake.x = (Math.random() - 0.5) * screenShake.intensity * 2;
@@ -1191,7 +1250,7 @@ function gameLoop() {
   if (gameActive) {
     if (!canShoot) { shootCooldown--; if (shootCooldown <= 0) canShoot = true; }
     if (comboTimer > 0) comboTimer--;
-    if (controlMode === 'touch' && canShoot && player && player.alive()) checkTouchFire();
+    if (controlMode === 'touch' && fireBtnHeld && canShoot && player && player.alive()) playerShoot();
     updateAI();
     updateProjectiles();
     player.update();
@@ -1206,6 +1265,7 @@ function gameLoop() {
   drawParticles();
   drawExplosions();
   drawProjectiles();
+  drawAimLine();
   drawHitTexts();
 
   if (player && player.alive()) player.draw();
