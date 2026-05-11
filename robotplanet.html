@@ -551,7 +551,7 @@ class RobotArena {
           mx = joystick.dx * joystick.dist;
           my = joystick.dy * joystick.dist;
         }
-        if (aimActive) {
+        if (aimActive && aimDragged) {
           var adx = aimX - this.x;
           var ady = aimY - this.y;
           if (Math.sqrt(adx*adx + ady*ady) > 5) this.turretAngle = Math.atan2(ady, adx);
