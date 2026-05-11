@@ -396,8 +396,9 @@ function handleTouch(e) {
         aimY = ty;
       }
     } else {
-      // Left side — joystick
+      // Left side — joystick (bewegen + mikken)
       activeJoystick = true;
+      activeAim = true;
       if (t.identifier !== joystick.touchId) {
         joystick.active = true;
         joystick.centerX = tx;
@@ -406,6 +407,10 @@ function handleTouch(e) {
         joystick.dy = 0;
         joystick.dist = 0;
         joystick.touchId = t.identifier;
+        aimActive = true;
+        aimDragged = false;
+        aimX = tx;
+        aimY = ty;
       } else {
         var ddx = tx - joystick.centerX;
         var ddy = ty - joystick.centerY;
@@ -420,6 +425,10 @@ function handleTouch(e) {
           joystick.dx = 0;
           joystick.dy = 0;
         }
+        aimActive = true;
+        aimX = joystick.centerX + joystick.dx * maxDist * joystick.dist;
+        aimY = joystick.centerY + joystick.dy * maxDist * joystick.dist;
+        aimDragged = joystick.dist > 0.1;
       }
     }
   }
@@ -437,14 +446,24 @@ function handleTouch(e) {
 
 function handleTouchEnd(e) {
   if (controlMode !== 'touch') return;
-  // Check if an aim touch ended — fire on release
+  // Check if JOYSTICK touch ended — fire in joystick direction
+  for (var ci = 0; ci < e.changedTouches.length; ci++) {
+    if (e.changedTouches[ci].identifier === joystick.touchId && joystick.active) {
+      if (joystick.dist > 0.1) {
+        var jx = joystick.centerX + joystick.dx * 60 * joystick.dist;
+        var jy = joystick.centerY + joystick.dy * 60 * joystick.dist;
+        playerShootAt(jx, jy);
+      } else {
+        playerShootAuto();
+      }
+    }
+  }
+  // Check if RIGHT SIDE aim touch ended — fire
   for (var ci = 0; ci < e.changedTouches.length; ci++) {
     if (e.changedTouches[ci].identifier === aimTouchId && aimActive) {
       if (aimDragged) {
-        // Manual aim: fire at where user aimed
         playerShootAt(aimX, aimY);
       } else {
-        // Tap: auto-aim + fire
         playerShootAuto();
       }
     }
@@ -787,7 +806,7 @@ function startGame() {
   var fireBtn = document.getElementById('fireBtn');
   if (controlMode === 'touch') {
     fireBtn.classList.add('show');
-    document.getElementById('controlsHint').innerHTML = 'Joystick = bewegen &nbsp;|&nbsp; <kbd>1-5</kbd> wapen &nbsp;|&nbsp; Rode knop = schiet &nbsp;|&nbsp; Rechts slepen = mikken, los = schiet';
+    document.getElementById('controlsHint').innerHTML = 'Joystick = rijden + mikken &nbsp;|&nbsp; Loslaten = schieten &nbsp;|&nbsp; Tik = auto-aim &nbsp;|&nbsp; Rode knop = vuur';
     document.querySelector('.weapon-bar').classList.add('touch-mode');
   } else {
     fireBtn.classList.remove('show');
