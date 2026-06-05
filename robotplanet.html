@@ -311,7 +311,7 @@
           <button class="diff-btn" onclick="setDifficulty(2)">Moeilijk</button>
         </div>
       </div>
-      <div id="multiOptions" style="display:none;flex-direction:column;align-items:center;gap:10px;margin-bottom:18px">
+      <div id="multiOptions" style="display:none;flex-direction:column;align-items:center;gap:10px;margin-bottom:12px">
         <button class="mp-btn" onclick="createRoom()">📡 Nieuwe Kamer</button>
         <span style="color:#6666aa;font-size:12px">of</span>
         <div style="display:flex;gap:8px">
@@ -320,7 +320,7 @@
         </div>
         <div class="mp-status" id="mpStatus" style="display:none"></div>
       </div>
-      <button class="btn" onclick="startGame()">VECHT</button>
+      <button class="btn" onclick="startGame()" id="startBtn">VECHT</button>
     </div>
     <div class="overlay" id="gameOverlay">
       <h1 id="resultTitle">🏆 VICTORY!</h1>
@@ -556,6 +556,8 @@ var gameMode = 'single';
 
 function setGameMode(mode) {
   gameMode = mode;
+  // Reset multiplayer state when switching
+  if (mode === 'single') { mpOpponent = null; roomCode = null; if (mpChannel) { mpChannel.unsubscribe(); mpChannel = null; } }
   var btns = document.querySelectorAll('.mode-main-btn');
   for (var i = 0; i < btns.length; i++) {
     var isActive = btns[i].textContent.toLowerCase().indexOf(mode) !== -1;
@@ -563,10 +565,16 @@ function setGameMode(mode) {
   }
   document.getElementById('singleOptions').style.display = mode === 'single' ? '' : 'none';
   document.getElementById('multiOptions').style.display = mode === 'multi' ? 'flex' : 'none';
+  document.getElementById('startBtn').style.display = mode === 'single' ? '' : 'none';
 }
 
 function initSupabase() {
   if (supabaseClient) return;
+  if (!window.supabase) {
+    document.getElementById('mpStatus').style.display = 'block';
+    document.getElementById('mpStatus').textContent = 'Fout: CDN niet geladen. Controleer internet.';
+    return;
+  }
   supabaseClient = window.supabase.createClient(
     'https://eedbcqpygnwquhuvvoho.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlZGJjcXB5Z253cXVodXZ2b2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTY1MDQsImV4cCI6MjA5NjIzMjUwNH0.DlmmMqAhYHk4CUf5nWXZWn2im3Gx1vk5aEALZ2x1MmM'
@@ -615,6 +623,7 @@ function subscribeToRoom() {
     if (!mpOpponent) {
       mpOpponent = new RobotArena(payload.name || 'Tegenstander', payload.x, payload.y, false);
       mpOpponent.color = '#ff4444';
+      mpOpponent.isPlayer = false;
       mpOpponent.hp = payload.hp || 100;
       mpOpponent.maxHp = payload.maxHp || 100;
       if (gameActive && enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
@@ -631,6 +640,7 @@ function subscribeToRoom() {
   });
   mpChannel.on('broadcast', { event: 'shot' }, function(payload) {
     if (payload.player_id === playerId) return;
+    if (!mpOpponent) return;
     var w = weapons[payload.weapon];
     if (!w) return;
     var angle = payload.angle;
@@ -988,11 +998,14 @@ function startGame() {
     if (!mpOpponent) {
       mpOpponent = new RobotArena('Tegenstander', oppStartX, 250, false);
       mpOpponent.color = '#ff4444';
+      mpOpponent.isPlayer = false;
       mpOpponent.hp = 100;
       mpOpponent.maxHp = 100;
     } else {
       mpOpponent.x = oppStartX;
       mpOpponent.y = 250;
+      mpOpponent.color = '#ff4444';
+      mpOpponent.isPlayer = false;
     }
     enemies.push(mpOpponent);
     projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
@@ -1497,6 +1510,12 @@ function drawHUD() {
   } else {
     document.getElementById('comboDisplay').classList.remove('show');
   }
+  if (gameMode === 'multi') {
+    ctx.fillStyle = 'rgba(255,255,200,0.3)';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('MP: ' + (mpOpponent && mpOpponent.alive() ? 'Tegenstander actief' : 'Wachten...') + ' | Enemies: ' + enemies.length, 10, H - 8);
+  }
 }
 
 function drawJoystick() {
@@ -1558,6 +1577,10 @@ function gameLoop() {
         enemies[ei].update();
       }
     }
+    // Safety net: always keep opponent in multiplayer
+    if (gameMode === 'multi' && mpOpponent && enemies.indexOf(mpOpponent) === -1) {
+      enemies.push(mpOpponent);
+    }
     if (gameMode === 'multi' && player && player.alive() && mpChannel) {
       mpStateSendCounter = (mpStateSendCounter || 0) + 1;
       if (mpStateSendCounter % 3 === 0) sendState();
@@ -1577,7 +1600,16 @@ function gameLoop() {
 
   if (player && player.alive()) player.draw();
   for (var ei3 = 0; ei3 < enemies.length; ei3++) {
-    if (enemies[ei3].alive()) enemies[ei3].draw();
+    if (enemies[ei3].alive()) {
+      enemies[ei3].draw();
+      // Label boven tegenstander in multiplayer
+      if (gameMode === 'multi') {
+        ctx.fillStyle = 'rgba(255,100,100,0.8)';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚔ ' + enemies[ei3].name, enemies[ei3].x, enemies[ei3].y - 40);
+      }
+    }
   }
 
   if (gameActive) drawHUD();
