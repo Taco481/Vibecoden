@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>RobotPlanet - Arena</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -120,6 +121,14 @@
     font-size: 10px;
   }
 
+  .diff-btn {
+    background: rgba(20,20,60,0.9); border: 1px solid #3a3a8a;
+    border-radius: 8px; padding: 8px 14px; color: #e0e0ff;
+    font-size: 14px; font-weight: bold; cursor: pointer; font-family: inherit;
+    transition: all 0.15s;
+  }
+  .diff-btn:hover { border-color: #6a6aff; }
+  .diff-btn.active { border-color: #ff8844; background: rgba(80,50,30,0.9); box-shadow: 0 0 15px rgba(255,136,68,0.3); }
   .mode-btn {
     background: rgba(20,20,60,0.9); border: 1px solid #3a3a8a;
     border-radius: 8px; padding: 8px 14px; color: #e0e0ff;
@@ -216,6 +225,25 @@
   }
   .start-screen .btn:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 0 60px rgba(255,221,68,0.6); }
 
+  .mode-main-btn {
+    background: rgba(20,20,60,0.9); border: 1px solid #3a3a8a;
+    border-radius: 8px; padding: 10px 24px; color: #e0e0ff;
+    font-size: 16px; font-weight: bold; cursor: pointer; font-family: inherit;
+    transition: all 0.15s;
+  }
+  .mode-main-btn:hover { border-color: #6a6aff; }
+  .mode-main-btn.active { border-color: #44ff88; background: rgba(30,80,50,0.9); box-shadow: 0 0 15px rgba(68,255,136,0.3); }
+  .mp-btn {
+    background: linear-gradient(135deg, #4a4aff, #2a2acc);
+    border: none; border-radius: 8px; padding: 10px 20px; color: #fff;
+    font-size: 14px; font-weight: bold; cursor: pointer; font-family: inherit;
+    transition: all 0.15s; box-shadow: 0 0 15px rgba(74,74,255,0.2);
+  }
+  .mp-btn:hover { transform: scale(1.05); box-shadow: 0 0 25px rgba(74,74,255,0.5); }
+  .mp-btn.secondary { background: rgba(40,40,80,0.9); box-shadow: none; }
+  .mp-btn.secondary:hover { background: rgba(60,60,120,0.9); }
+  .mp-status { font-size: 13px; color: #8888cc; margin: 8px 0; text-align: center; }
+
   .combo-display {
     position: absolute; top: 10px; right: 15px;
     font-size: 24px; font-weight: bold; color: #ffdd44;
@@ -259,17 +287,38 @@
     <div class="start-screen" id="startScreen">
       <h1>⚡ ROBOTPLANET</h1>
       <div class="tagline">— BATTLE ARENA —</div>
-      <input type="text" id="nameInput" value="MechWarrior" maxlength="20" placeholder="Robot naam">
-      <div class="enemy-select">
-        <span>Tegenstanders:</span>
-        <button class="enemy-btn active" onclick="setEnemyCount(1)">1</button>
-        <button class="enemy-btn" onclick="setEnemyCount(2)">2</button>
-        <button class="enemy-btn" onclick="setEnemyCount(3)">3</button>
+      <div class="enemy-select" style="margin-bottom:12px;justify-content:center">
+        <button class="mode-main-btn active" onclick="setGameMode('single')">Singleplayer</button>
+        <button class="mode-main-btn" onclick="setGameMode('multi')">Multiplayer</button>
       </div>
-      <div class="enemy-select" style="margin-bottom:18px">
-        <span>Besturing:</span>
-        <button class="mode-btn active" onclick="setControlMode('kbm')">Toetsenbord + Muis</button>
-        <button class="mode-btn" onclick="setControlMode('touch')">Touchscreen</button>
+      <input type="text" id="nameInput" value="MechWarrior" maxlength="20" placeholder="Robot naam">
+      <div id="singleOptions">
+        <div class="enemy-select">
+          <span>Tegenstanders:</span>
+          <button class="enemy-btn active" onclick="setEnemyCount(1)">1</button>
+          <button class="enemy-btn" onclick="setEnemyCount(2)">2</button>
+          <button class="enemy-btn" onclick="setEnemyCount(3)">3</button>
+        </div>
+        <div class="enemy-select" style="margin-bottom:12px">
+          <span>Besturing:</span>
+          <button class="mode-btn active" onclick="setControlMode('kbm')">Toetsenbord + Muis</button>
+          <button class="mode-btn" onclick="setControlMode('touch')">Touchscreen</button>
+        </div>
+        <div class="enemy-select" style="margin-bottom:18px">
+          <span>Moeilijkheid:</span>
+          <button class="diff-btn active" onclick="setDifficulty(0)">Gemakkelijk</button>
+          <button class="diff-btn" onclick="setDifficulty(1)">Normaal</button>
+          <button class="diff-btn" onclick="setDifficulty(2)">Moeilijk</button>
+        </div>
+      </div>
+      <div id="multiOptions" style="display:none;flex-direction:column;align-items:center;gap:10px;margin-bottom:18px">
+        <button class="mp-btn" onclick="createRoom()">📡 Nieuwe Kamer</button>
+        <span style="color:#6666aa;font-size:12px">of</span>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="roomCodeInput" placeholder="Kamer code" maxlength="6" style="width:120px;background:rgba(20,20,60,0.9);border:1px solid #4a4aff;border-radius:8px;padding:8px 12px;color:#e0e0ff;font-size:16px;font-family:inherit;text-align:center;outline:none">
+          <button class="mp-btn" onclick="joinRoom()">🔗 Join</button>
+        </div>
+        <div class="mp-status" id="mpStatus" style="display:none"></div>
       </div>
       <button class="btn" onclick="startGame()">VECHT</button>
     </div>
@@ -329,6 +378,10 @@ var selectedWeapon = 0, gameActive = false, canShoot = true;
 var shootCooldown = 0, screenShake = { x: 0, y: 0, intensity: 0 };
 var comboCount = 0, comboTimer = 0, roundCount = 0, killCount = 0;
 var enemyCount = 1;
+var difficulty = 1; // 0=gemakkelijk, 1=normaal, 2=moeilijk
+var gameMode = 'single'; // 'single' or 'multi'
+var supabaseClient, roomCode, playerId, isHost, mpChannel, mpOpponent = null;
+var mpStateSendCounter = 0;
 var bgStars = [];
 var mouseX = 400, mouseY = 250;
 var controlMode = 'kbm';
@@ -488,6 +541,145 @@ function setEnemyCount(n) {
   for (var i = 0; i < btns.length; i++) {
     btns[i].className = 'enemy-btn' + (parseInt(btns[i].textContent) === n ? ' active' : '');
   }
+}
+
+function setDifficulty(n) {
+  difficulty = n;
+  var labels = ['Gemakkelijk', 'Normaal', 'Moeilijk'];
+  var btns = document.querySelectorAll('.diff-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].className = 'diff-btn' + (i === n ? ' active' : '');
+  }
+}
+
+var gameMode = 'single';
+
+function setGameMode(mode) {
+  gameMode = mode;
+  var btns = document.querySelectorAll('.mode-main-btn');
+  for (var i = 0; i < btns.length; i++) {
+    var isActive = btns[i].textContent.toLowerCase().indexOf(mode) !== -1;
+    btns[i].className = 'mode-main-btn' + (isActive ? ' active' : '');
+  }
+  document.getElementById('singleOptions').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('multiOptions').style.display = mode === 'multi' ? 'flex' : 'none';
+}
+
+function initSupabase() {
+  if (supabaseClient) return;
+  supabaseClient = window.supabase.createClient(
+    'https://eedbcqpygnwquhuvvoho.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlZGJjcXB5Z253cXVodXZ2b2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTY1MDQsImV4cCI6MjA5NjIzMjUwNH0.DlmmMqAhYHk4CUf5nWXZWn2im3Gx1vk5aEALZ2x1MmM'
+  );
+}
+
+function createRoom() {
+  initSupabase();
+  playerId = 'p_' + Math.random().toString(36).substr(2, 8);
+  isHost = true;
+  roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+  document.getElementById('mpStatus').style.display = 'block';
+  document.getElementById('mpStatus').textContent = 'Kamer: ' + roomCode + ' — Wachten op speler...';
+  supabaseClient.from('rooms').insert({ code: roomCode, host_id: playerId, status: 'waiting' }).then(function(resp) {
+    if (resp.error) { document.getElementById('mpStatus').textContent = 'Fout bij aanmaken kamer'; return; }
+    subscribeToRoom();
+  });
+}
+
+function joinRoom() {
+  var code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+  if (code.length < 3) { document.getElementById('mpStatus').textContent = 'Voer een geldige kamer code in'; document.getElementById('mpStatus').style.display = 'block'; return; }
+  initSupabase();
+  playerId = 'p_' + Math.random().toString(36).substr(2, 8);
+  isHost = false;
+  roomCode = code;
+  document.getElementById('mpStatus').style.display = 'block';
+  document.getElementById('mpStatus').textContent = 'Joinen van kamer ' + code + '...';
+  supabaseClient.from('rooms').select('*').eq('code', code).single().then(function(resp) {
+    if (resp.error || !resp.data) { document.getElementById('mpStatus').textContent = 'Kamer niet gevonden'; return; }
+    if (resp.data.status !== 'waiting') { document.getElementById('mpStatus').textContent = 'Kamer is al bezig'; return; }
+    supabaseClient.from('rooms').update({ guest_id: playerId, status: 'playing' }).eq('code', code).then(function(upd) {
+      if (upd.error) { document.getElementById('mpStatus').textContent = 'Fout bij joinen'; return; }
+      subscribeToRoom();
+      startGame();
+    });
+  });
+}
+
+function subscribeToRoom() {
+  mpChannel = supabaseClient.channel('room-' + roomCode, {
+    config: { broadcast: { self: false } }
+  });
+  mpChannel.on('broadcast', { event: 'state' }, function(payload) {
+    if (payload.player_id === playerId) return;
+    if (!mpOpponent) {
+      mpOpponent = new RobotArena(payload.name || 'Tegenstander', payload.x, payload.y, false);
+      mpOpponent.color = '#ff4444';
+      mpOpponent.hp = payload.hp || 100;
+      mpOpponent.maxHp = payload.maxHp || 100;
+      if (gameActive && enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
+    }
+    mpOpponent.x = payload.x;
+    mpOpponent.y = payload.y;
+    mpOpponent.hp = payload.hp;
+    mpOpponent.maxHp = payload.maxHp || 100;
+    mpOpponent.bodyAngle = payload.bodyAngle || 0;
+    mpOpponent.turretAngle = payload.turretAngle || 0;
+    mpOpponent.shield = payload.shield || 0;
+    mpOpponent.stunned = payload.stunned || false;
+    mpOpponent.shakeTimer = 4;
+  });
+  mpChannel.on('broadcast', { event: 'shot' }, function(payload) {
+    if (payload.player_id === playerId) return;
+    var w = weapons[payload.weapon];
+    if (!w) return;
+    var angle = payload.angle;
+    fireProjectile(payload.x, payload.y,
+      payload.x + Math.cos(angle) * 200,
+      payload.y + Math.sin(angle) * 200,
+      w, mpOpponent);
+  });
+  mpChannel.subscribe(function(status) {
+    if (status === 'SUBSCRIBED') {
+      document.getElementById('mpStatus').textContent = isHost ?
+        'Kamer: ' + roomCode + ' — Wachten op tegenstander...' :
+        'Verbonden met kamer ' + roomCode;
+    }
+  });
+  // Poll for guest joining (host)
+  if (isHost) {
+    var pollInterval = setInterval(function() {
+      if (!roomCode) { clearInterval(pollInterval); return; }
+      supabaseClient.from('rooms').select('guest_id,status').eq('code', roomCode).single().then(function(resp) {
+        if (resp.data && resp.data.guest_id && mpChannel) {
+          clearInterval(pollInterval);
+          document.getElementById('mpStatus').textContent = 'Kamer: ' + roomCode + ' — Tegenstander joined!';
+          setTimeout(function() { startGame(); }, 500);
+        }
+      });
+    }, 1000);
+  }
+}
+
+function sendState() {
+  if (!mpChannel || !player || !player.alive()) return;
+  mpChannel.send({
+    type: 'broadcast', event: 'state',
+    payload: {
+      player_id: playerId, name: player.name,
+      x: player.x, y: player.y, hp: player.hp, maxHp: player.maxHp,
+      bodyAngle: player.bodyAngle, turretAngle: player.turretAngle,
+      shield: player.shield, stunned: player.stunned, weapon: selectedWeapon
+    }
+  });
+}
+
+function sendShot(x, y, angle, weaponIdx) {
+  if (!mpChannel) return;
+  mpChannel.send({
+    type: 'broadcast', event: 'shot',
+    payload: { player_id: playerId, x: x, y: y, angle: angle, weapon: weaponIdx }
+  });
 }
 
 function getEnemyPositions(count) {
@@ -783,10 +975,54 @@ function fireProjectile(fromX, fromY, toX, toY, weapon, attacker) {
 function startGame() {
   var input = document.getElementById('nameInput');
   var pName = input ? input.value.trim() || "MechWarrior" : "MechWarrior";
+  if (gameMode === 'multi') {
+    if (!roomCode) return;
+    if (gameActive) return;
+    enemyCount = 1;
+    var playerStartX = isHost ? 150 : 650;
+    player = new RobotArena(pName, playerStartX, 250, true);
+    player.maxHp = 200;
+    player.hp = 200;
+    enemies = [];
+    var oppStartX = isHost ? 650 : 150;
+    if (!mpOpponent) {
+      mpOpponent = new RobotArena('Tegenstander', oppStartX, 250, false);
+      mpOpponent.color = '#ff4444';
+      mpOpponent.hp = 100;
+      mpOpponent.maxHp = 100;
+    } else {
+      mpOpponent.x = oppStartX;
+      mpOpponent.y = 250;
+    }
+    enemies.push(mpOpponent);
+    projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
+    selectedWeapon = 0; gameActive = true; canShoot = true;
+    shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0;
+    screenShake.intensity = 0;
+    document.getElementById('startScreen').style.display = 'none';
+    var fireBtn = document.getElementById('fireBtn');
+    if (controlMode === 'touch') {
+      fireBtn.classList.add('show');
+      document.getElementById('controlsHint').innerHTML = 'Joystick = rijden + mikken &nbsp;|&nbsp; Loslaten = schieten &nbsp;|&nbsp; Tik = auto-aim &nbsp;|&nbsp; Rode knop = vuur';
+      document.querySelector('.weapon-bar').classList.add('touch-mode');
+    } else {
+      fireBtn.classList.remove('show');
+      document.getElementById('controlsHint').innerHTML = '<kbd>W A S D</kbd> bewegen &nbsp;|&nbsp; <kbd>1-5</kbd> wapen &nbsp;|&nbsp; <kbd>Klik</kbd> / <kbd>Spatie</kbd> schiet';
+      document.querySelector('.weapon-bar').classList.remove('touch-mode');
+    }
+    updateWeaponBar();
+    buildEnemyHpBars();
+    updateHP();
+    return;
+  }
   player = new RobotArena(pName, 150, 250, true);
   player.maxHp = 200;
   player.hp = 200;
   enemies = [];
+  var diffSpeed = [0.65, 1.0, 1.35];
+  var diffHp = [80, 100, 120];
+  var diffCooldownBase = [35, 20, 12];
+  var diffCooldownRand = [30, 30, 20];
   var positions = getEnemyPositions(enemyCount);
   var used = {};
   for (var i = 0; i < enemyCount; i++) {
@@ -794,7 +1030,11 @@ function startGame() {
     do { nameIdx = Math.floor(Math.random() * aiNames.length); } while (used[nameIdx]);
     used[nameIdx] = true;
     var ai = new RobotArena(aiNames[nameIdx], positions[i].x, positions[i].y, false);
-    ai.aiCooldown = 30 + Math.random() * 40;
+    ai.speed = ai.speed * diffSpeed[difficulty];
+    ai.hp = diffHp[difficulty];
+    ai.maxHp = diffHp[difficulty];
+    ai.diffDmgMult = [0.7, 1.0, 1.35][difficulty];
+    ai.aiCooldown = diffCooldownBase[difficulty] + Math.random() * diffCooldownRand[difficulty];
     enemies.push(ai);
   }
   projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
@@ -918,10 +1158,12 @@ function playerShoot() {
   var spread = w.special === "multi" ? 50 : 20;
   var tx = mouseX;
   var ty = mouseY;
+  var angle = player.turretAngle;
   fireProjectile(player.x, player.y, tx, ty, w, player);
   player.shootFlash = 8;
   canShoot = false;
   shootCooldown = w.special === "multi" ? 28 : 15;
+  if (gameMode === 'multi') sendShot(player.x, player.y, angle, selectedWeapon);
 }
 
 function getTargets(attacker) {
@@ -953,19 +1195,19 @@ function processHits() {
       projectiles.splice(i, 1);
       continue;
     }
-    var dmg = w.damage;
+    var dmg = w.damage * (p.attacker.diffDmgMult || 1);
     if (w.special === "stun") {
       target.takeDamage(dmg);
       createExplosion(p.x, p.y, w.color, 30, true);
       target.stunned = true;
-      addHitText(p.x, p.y, dmg + " \u26A1", w.color);
+      addHitText(p.x, p.y, Math.round(dmg) + " \u26A1", w.color);
       if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
     } else if (w.special === "multi") {
-      dmg = target.takeDamage(w.damage);
+      dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
       createExplosion(p.x, p.y, w.color, 15, false);
       addHitText(p.x, p.y, '' + dmg, w.color);
     } else {
-      dmg = target.takeDamage(w.damage);
+      dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
       createExplosion(p.x, p.y, w.color, 25, dmg > 30);
       addHitText(p.x, p.y, '-' + dmg, dmg > 30 ? "#ffdd44" : w.color);
       if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
@@ -995,6 +1237,36 @@ function allEnemiesDead() {
 }
 
 function checkGameOver() {
+  var allDead = allEnemiesDead();
+  if (gameMode === 'multi') {
+    // In multiplayer, also end if opponent disconnects or dies
+    if (!player.alive() || allDead) {
+      gameActive = false;
+      setTimeout(function() {
+        var overlay = document.getElementById('gameOverlay');
+        var title = document.getElementById('resultTitle');
+        var msg = document.getElementById('resultMsg');
+        var rounds = document.getElementById('resultRounds');
+        if (player.alive() && allDead) {
+          title.textContent = "\uD83C\uDFC6 VICTORY!";
+          title.className = 'win';
+          msg.textContent = player.name + ' wint het online gevecht!';
+        } else if (!player.alive()) {
+          title.textContent = "\uD83D\uDC80 VERLOREN";
+          title.className = 'lose';
+          msg.textContent = player.name + ' is vernietigd...';
+        } else {
+          title.textContent = "\uD83D\uDC4B TEGENSTANDER WEG";
+          title.className = 'lose';
+          msg.textContent = 'Tegenstander heeft de verbinding verbroken';
+        }
+        rounds.textContent = 'Gevecht duurde ' + Math.max(1, roundCount) + ' ronden';
+        overlay.classList.add('show');
+      }, 500);
+      return true;
+    }
+    return false;
+  }
   if (!player.alive() || allEnemiesDead()) {
     gameActive = false;
     setTimeout(function() {
@@ -1050,6 +1322,7 @@ function updateHP() {
 }
 
 function updateAI() {
+  if (gameMode === 'multi') return;
   for (var ei = 0; ei < enemies.length; ei++) {
     var ai = enemies[ei];
     if (!ai.alive() || !player.alive()) continue;
@@ -1087,7 +1360,8 @@ function updateAI() {
         ai.shootFlash = 8;
         ai.aiCooldown = 35 + Math.random() * 25;
       } else {
-        var spread = w.special === "multi" ? 60 : 25;
+        var diffSpread = [1.5, 1.0, 0.7];
+        var spread = (w.special === "multi" ? 60 : 25) * diffSpread[difficulty];
         fireProjectile(ai.x, ai.y, player.x + (Math.random() - 0.5) * spread, player.y + (Math.random() - 0.5) * spread, w, ai);
         ai.shootFlash = 8;
         ai.aiCooldown = 20 + Math.random() * 30;
@@ -1273,7 +1547,21 @@ function gameLoop() {
     updateAI();
     updateProjectiles();
     player.update();
-    for (var ei = 0; ei < enemies.length; ei++) enemies[ei].update();
+    for (var ei = 0; ei < enemies.length; ei++) {
+      if (gameMode === 'multi' && enemies[ei] === mpOpponent) {
+        // opponent position comes from network, only apply stun recovery
+        if (enemies[ei].stunned && Math.random() < 0.008) enemies[ei].stunned = false;
+        if (enemies[ei].shakeTimer > 0) enemies[ei].shakeTimer--;
+        if (enemies[ei].hitFlash > 0) enemies[ei].hitFlash--;
+        if (enemies[ei].shootFlash > 0) enemies[ei].shootFlash--;
+      } else {
+        enemies[ei].update();
+      }
+    }
+    if (gameMode === 'multi' && player && player.alive() && mpChannel) {
+      mpStateSendCounter = (mpStateSendCounter || 0) + 1;
+      if (mpStateSendCounter % 3 === 0) sendState();
+    }
     if (player.stunned && Math.random() < 0.008) player.stunned = false;
     for (var ei2 = 0; ei2 < enemies.length; ei2++) {
       if (enemies[ei2].stunned && Math.random() < 0.008) enemies[ei2].stunned = false;
