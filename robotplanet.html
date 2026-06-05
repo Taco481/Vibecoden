@@ -659,14 +659,14 @@ function subscribeToRoom() {
       document.getElementById('mpStatus').textContent = 'Tegenstander gevonden!';
       if (!gameActive) setTimeout(function() { startGame(); }, 300);
     } else {
-      mpOpponent.targetX = data.x;
-      mpOpponent.targetY = data.y;
-      mpOpponent.hp = data.hp;
-      mpOpponent.maxHp = data.max_hp || 200;
-      mpOpponent.targetBodyAngle = data.body_angle || 0;
-      mpOpponent.targetTurretAngle = data.turret_angle || 0;
-      mpOpponent.shield = data.shield || 0;
-      mpOpponent.stunned = data.stunned || false;
+      mpOpponent.targetX = data.x || mpOpponent.targetX;
+      mpOpponent.targetY = data.y || mpOpponent.targetY;
+      mpOpponent.hp = data.hp !== undefined ? data.hp : mpOpponent.hp;
+      mpOpponent.maxHp = data.max_hp || mpOpponent.maxHp;
+      mpOpponent.targetBodyAngle = data.body_angle || mpOpponent.targetBodyAngle;
+      mpOpponent.targetTurretAngle = data.turret_angle || mpOpponent.targetTurretAngle;
+      mpOpponent.shield = data.shield || mpOpponent.shield;
+      mpOpponent.stunned = data.stunned !== undefined ? data.stunned : mpOpponent.stunned;
       mpOpponent.shakeTimer = 4;
     }
   });
@@ -701,7 +701,7 @@ function subscribeToRoom() {
   mpChannel.subscribe(function(status) {
     logToConsole('Channel status: ' + status, 'info');
     if (status === 'SUBSCRIBED') {
-      // Insert initial player state
+      // Insert initial player state (DB fallback voor late joiners)
       supabaseClient.from('player_states').upsert({
         room_code: roomCode, player_id: playerId, name: 'Speler',
         x: isHost ? 150 : 650, y: 250, hp: 200, max_hp: 200,
@@ -712,7 +712,14 @@ function subscribeToRoom() {
       document.getElementById('mpStatus').textContent = isHost ?
         'Kamer: ' + roomCode + ' — Wachten op tegenstander...' :
         'Verbonden met kamer ' + roomCode;
-      // Check of er al een andere speler is
+      // Direct hello broadcast — sneller dan DB replication
+      if (mpChannel) {
+        mpChannel.send({
+          type: 'broadcast', event: 'state',
+          payload: { player_id: playerId, x: isHost ? 150 : 650, y: 250, hp: 200, max_hp: 200, name: 'Speler' }
+        });
+      }
+      // Check of er al een andere speler is via DB
       supabaseClient.from('player_states').select('*').eq('room_code', roomCode).then(function(r) {
         if (r.data && r.data.length >= 2 && !gameActive) {
           document.getElementById('mpStatus').textContent = 'Tegenstander gevonden!';
