@@ -633,39 +633,18 @@ function joinRoom() {
       if (upd.error) { logToConsole('Join update fout: ' + JSON.stringify(upd.error), 'err'); document.getElementById('mpStatus').textContent = 'Fout bij joinen'; return; }
       logToConsole('Room gejoined, start game', 'info');
       subscribeToRoom();
-      startGame();
     });
   });
 }
 
 function subscribeToRoom() {
   logToConsole('Subscriben naar kamer ' + roomCode, 'info');
-  mpChannel = supabaseClient.channel('room-' + roomCode, {
-    config: { broadcast: { self: false }, presence: { key: playerId } }
-  });
-  mpChannel.on('broadcast', { event: 'state' }, function(payload) {
-    if (payload.player_id === playerId) return;
-    if (!mpOpponent) {
-      mpOpponent = new RobotArena(payload.name || 'Tegenstander', payload.x, payload.y, false);
-      mpOpponent.color = '#ff4444';
-      mpOpponent.isPlayer = false;
-      mpOpponent.hp = payload.hp || 100;
-      mpOpponent.maxHp = payload.maxHp || 100;
-      if (gameActive && enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
-    }
-    mpOpponent.x = payload.x;
-    mpOpponent.y = payload.y;
-    mpOpponent.hp = payload.hp;
-    mpOpponent.maxHp = payload.maxHp || 100;
-    mpOpponent.bodyAngle = payload.bodyAngle || 0;
-    mpOpponent.turretAngle = payload.turretAngle || 0;
-    mpOpponent.shield = payload.shield || 0;
-    mpOpponent.stunned = payload.stunned || false;
-    mpOpponent.shakeTimer = 4;
-  });
+  // Channel voor shots (Broadcast) + DB changes
+  mpChannel = supabaseClient.channel('room-' + roomCode);
+  // Shots via Broadcast
   mpChannel.on('broadcast', { event: 'shot' }, function(payload) {
     if (payload.player_id === playerId) return;
-    if (!mpOpponent) { logToConsole('Shot ontvangen maar mpOpponent is null', 'warn'); return; }
+    if (!mpOpponent) { return; }
     var w = weapons[payload.weapon];
     if (!w) return;
     var angle = payload.angle;
@@ -674,42 +653,71 @@ function subscribeToRoom() {
       payload.y + Math.sin(angle) * 200,
       w, mpOpponent);
   });
-  mpChannel.on('presence', { event: 'sync' }, function() {
-    var state = mpChannel.presenceState();
-    var count = Object.keys(state).length;
-    logToConsole('Presence sync: ' + count + ' speler(s)', 'info');
-    if (count >= 2 && !gameActive) {
-      document.getElementById('mpStatus').textContent = 'Tegenstander gevonden!';
-      setTimeout(function() { startGame(); }, 300);
+  // Player state via DB changes
+  mpChannel.on('postgres_changes',
+    { event: '*', schema: 'public', table: 'player_states', filter: 'room_code=eq.' + roomCode },
+    function(payload) {
+      var data = payload.new;
+      if (!data || data.player_id === playerId) return;
+      logToConsole('State update van ' + data.player_id + ' hp=' + data.hp, 'info');
+      if (!mpOpponent) {
+        mpOpponent = new RobotArena(data.name || 'Tegenstander', data.x || 650, data.y || 250, false);
+        mpOpponent.color = '#ff4444';
+        mpOpponent.isPlayer = false;
+        mpOpponent.hp = data.hp || 100;
+        mpOpponent.maxHp = data.max_hp || 100;
+        if (gameActive && enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
+        document.getElementById('mpStatus').textContent = 'Tegenstander gevonden!';
+        if (!gameActive) setTimeout(function() { startGame(); }, 300);
+      } else {
+        mpOpponent.x = data.x || mpOpponent.x;
+        mpOpponent.y = data.y || mpOpponent.y;
+        mpOpponent.hp = data.hp;
+        mpOpponent.maxHp = data.max_hp || 100;
+        mpOpponent.bodyAngle = data.body_angle || 0;
+        mpOpponent.turretAngle = data.turret_angle || 0;
+        mpOpponent.shield = data.shield || 0;
+        mpOpponent.stunned = data.stunned || false;
+        mpOpponent.shakeTimer = 4;
+      }
     }
-  });
-  mpChannel.on('presence', { event: 'leave' }, function() {
-    logToConsole('Tegenstander weg', 'warn');
-  });
+  );
   mpChannel.subscribe(function(status) {
     logToConsole('Channel status: ' + status, 'info');
     if (status === 'SUBSCRIBED') {
-      mpChannel.track({ player_id: playerId });
+      // Insert initial player state
+      supabaseClient.from('player_states').upsert({
+        room_code: roomCode, player_id: playerId, name: 'Speler',
+        x: isHost ? 150 : 650, y: 250, hp: 200, max_hp: 200,
+        body_angle: 0, turret_angle: 0, shield: 0, stunned: false, alive: true, weapon: 0
+      }, { onConflict: 'room_code,player_id' }).then(function(r) {
+        if (r.error) logToConsole('init state fout: ' + JSON.stringify(r.error), 'err');
+      });
       document.getElementById('mpStatus').textContent = isHost ?
         'Kamer: ' + roomCode + ' — Wachten op tegenstander...' :
         'Verbonden met kamer ' + roomCode;
-    }
-    if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-      logToConsole('Channel error/closed: ' + status, 'err');
+      // Check of er al een andere speler is
+      supabaseClient.from('player_states').select('*').eq('room_code', roomCode).then(function(r) {
+        if (r.data && r.data.length >= 2 && !gameActive) {
+          document.getElementById('mpStatus').textContent = 'Tegenstander gevonden!';
+          setTimeout(function() { startGame(); }, 300);
+        }
+      });
     }
   });
 }
 
-function sendState() {
-  if (!mpChannel || !player || !player.alive()) return;
-  mpChannel.send({
-    type: 'broadcast', event: 'state',
-    payload: {
-      player_id: playerId, name: player.name,
-      x: player.x, y: player.y, hp: player.hp, maxHp: player.maxHp,
-      bodyAngle: player.bodyAngle, turretAngle: player.turretAngle,
-      shield: player.shield, stunned: player.stunned, weapon: selectedWeapon
-    }
+function upsertState() {
+  if (!supabaseClient || !player || !roomCode) return;
+  supabaseClient.from('player_states').upsert({
+    room_code: roomCode, player_id: playerId, name: player.name,
+    x: Math.round(player.x), y: Math.round(player.y),
+    hp: player.hp, max_hp: player.maxHp,
+    body_angle: player.bodyAngle, turret_angle: player.turretAngle,
+    shield: player.shield, stunned: player.stunned,
+    alive: player.alive(), weapon: selectedWeapon
+  }, { onConflict: 'room_code,player_id' }).then(function(r) {
+    if (r.error) logToConsole('upsert fout: ' + JSON.stringify(r.error), 'err');
   });
 }
 
@@ -720,6 +728,14 @@ function sendShot(x, y, angle, weaponIdx) {
     payload: { player_id: playerId, x: x, y: y, angle: angle, weapon: weaponIdx }
   });
 }
+
+window.addEventListener('beforeunload', function() {
+  if (roomCode && supabaseClient) {
+    supabaseClient.from('player_states').delete().eq('room_code', roomCode).eq('player_id', playerId).then(function() {});
+    supabaseClient.from('rooms').delete().eq('code', roomCode).then(function() {});
+  }
+  if (mpChannel) mpChannel.unsubscribe();
+});
 
 function getEnemyPositions(count) {
   if (count === 1) return [{ x: 650, y: 250 }];
@@ -1630,7 +1646,7 @@ function gameLoop() {
     }
     if (gameMode === 'multi' && player && player.alive() && mpChannel) {
       mpStateSendCounter = (mpStateSendCounter || 0) + 1;
-      if (mpStateSendCounter % 3 === 0) sendState();
+      if (mpStateSendCounter % 3 === 0) upsertState();
     }
     if (player.stunned && Math.random() < 0.008) player.stunned = false;
     for (var ei2 = 0; ei2 < enemies.length; ei2++) {
