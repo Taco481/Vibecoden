@@ -1560,6 +1560,67 @@ function drawArena() {
   ctx.strokeRect(0, 0, W, H);
 }
 
+function drawParticles() {
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vx *= 0.96; p.vy *= 0.96; p.vy += 0.08; p.life--;
+    var alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.3 + alpha * 0.7), 0, Math.PI * 2); ctx.fill();
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+}
+
+function drawExplosions() {
+  for (var i = explosions.length - 1; i >= 0; i--) {
+    var e = explosions[i];
+    e.radius += e.big ? 2.5 : 1.8; e.alpha -= e.big ? 0.03 : 0.04;
+    ctx.globalAlpha = Math.max(0, e.alpha);
+    ctx.strokeStyle = e.color; ctx.lineWidth = e.big ? 4 : 2;
+    ctx.shadowColor = e.color; ctx.shadowBlur = 30;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = e.color;
+    ctx.globalAlpha = Math.max(0, e.alpha * 0.2);
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.radius * 0.4, 0, Math.PI * 2); ctx.fill();
+    if (e.alpha <= 0) explosions.splice(i, 1);
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+}
+
+function drawProjectiles() {
+  for (var pi = 0; pi < projectiles.length; pi++) {
+    var p = projectiles[pi];
+    ctx.shadowColor = p.color; ctx.shadowBlur = 20;
+    for (var j = 0; j < p.trail.length; j++) {
+      var alpha = (j / p.trail.length) * 0.7;
+      ctx.globalAlpha = alpha; ctx.fillStyle = p.color;
+      var s = p.size * (0.2 + (j / p.trail.length) * 0.8);
+      ctx.beginPath(); ctx.arc(p.trail[j].x, p.trail[j].y, s, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawHitTexts() {
+  for (var i = hitTexts.length - 1; i >= 0; i--) {
+    var h = hitTexts[i];
+    h.y += h.vy; h.vy *= 0.95; h.life--;
+    var alpha = h.life / h.maxLife;
+    ctx.globalAlpha = alpha; ctx.font = "bold 24px monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = h.color; ctx.shadowColor = h.color; ctx.shadowBlur = 20;
+    ctx.fillText(h.text, h.x, h.y); ctx.shadowBlur = 0;
+    if (h.life <= 0) hitTexts.splice(i, 1);
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawAimLine() {
   if (!player || !player.alive() || !aimActive) return;
   ctx.save();
