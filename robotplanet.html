@@ -689,16 +689,10 @@ function subscribeToRoom() {
   mpChannel.subscribe(function(status) {
     logToConsole('Channel status: ' + status, 'info');
     if (status === 'SUBSCRIBED') {
+      mpChannel.track({ player_id: playerId });
       document.getElementById('mpStatus').textContent = isHost ?
         'Kamer: ' + roomCode + ' — Wachten op tegenstander...' :
         'Verbonden met kamer ' + roomCode;
-      // Check na subscribe of er al 2 zijn (bv. host is sneller)
-      var state = mpChannel.presenceState();
-      var count = Object.keys(state).length;
-      if (count >= 2 && !gameActive) {
-        document.getElementById('mpStatus').textContent = 'Tegenstander gevonden!';
-        setTimeout(function() { startGame(); }, 300);
-      }
     }
     if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
       logToConsole('Channel error/closed: ' + status, 'err');
