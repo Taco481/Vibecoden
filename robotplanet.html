@@ -1543,6 +1543,16 @@ function drawHUD() {
     ctx.font = '10px monospace';
     ctx.textAlign = 'left';
     ctx.fillText('MP: ' + (mpOpponent && mpOpponent.alive() ? 'Tegenstander actief' : 'Wachten...') + ' | Enemies: ' + enemies.length, 10, H - 8);
+    // Grote status in het midden als er geen tegenstander is
+    if (!mpOpponent || !mpOpponent.alive() || enemies.length === 0) {
+      ctx.fillStyle = 'rgba(255,200,0,0.5)';
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('⏳ WACHTEN OP TEGENSTANDER...', W/2, H/2 - 40);
+      ctx.fillStyle = 'rgba(255,255,200,0.3)';
+      ctx.font = '12px monospace';
+      ctx.fillText('mpOpponent: ' + (!!mpOpponent) + ' | enemies: ' + enemies.length + ' | alive: ' + (mpOpponent ? mpOpponent.alive() : 'nvt'), W/2, H/2 - 20);
+    }
   }
 }
 
@@ -1606,8 +1616,15 @@ function gameLoop() {
       }
     }
     // Safety net: always keep opponent in multiplayer
-    if (gameMode === 'multi' && mpOpponent && enemies.indexOf(mpOpponent) === -1) {
-      enemies.push(mpOpponent);
+    if (gameMode === 'multi') {
+      if (!mpOpponent || mpOpponent.hp <= 0) {
+        mpOpponent = new RobotArena('Tegenstander', isHost ? 650 : 150, 250, false);
+        mpOpponent.color = '#ff4444';
+        mpOpponent.isPlayer = false;
+        mpOpponent.hp = 100;
+        mpOpponent.maxHp = 100;
+      }
+      if (enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
     }
     if (gameMode === 'multi' && player && player.alive() && mpChannel) {
       mpStateSendCounter = (mpStateSendCounter || 0) + 1;
