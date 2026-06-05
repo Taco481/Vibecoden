@@ -327,6 +327,7 @@
           <button class="mp-btn" onclick="joinRoom()">🔗 Join</button>
         </div>
         <div class="mp-status" id="mpStatus" style="display:none"></div>
+        <button class="mp-btn" id="leaveRoomBtn" onclick="leaveRoom()" style="display:none;margin-top:4px;font-size:12px;padding:4px 10px">✕ Verlaten</button>
       </div>
       <button class="btn" onclick="startGame()" id="startBtn">VECHT</button>
     </div>
@@ -607,6 +608,8 @@ function createRoom() {
   logToConsole('Kamer aangemaakt: ' + roomCode, 'info');
   document.getElementById('mpStatus').style.display = 'block';
   document.getElementById('mpStatus').textContent = 'Kamer: ' + roomCode + ' — Wachten op speler...';
+  document.getElementById('leaveRoomBtn').style.display = 'inline-block';
+  document.getElementById('startBtn').style.display = 'none';
   supabaseClient.from('rooms').insert({ code: roomCode, host_id: playerId, status: 'waiting' }).then(function(resp) {
     if (resp.error) { logToConsole('DB fout: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Fout bij aanmaken kamer'; return; }
     logToConsole('Room in DB opgeslagen', 'info');
@@ -624,6 +627,8 @@ function joinRoom() {
   roomCode = code;
   document.getElementById('mpStatus').style.display = 'block';
   document.getElementById('mpStatus').textContent = 'Joinen van kamer ' + code + '...';
+  document.getElementById('leaveRoomBtn').style.display = 'inline-block';
+  document.getElementById('startBtn').style.display = 'none';
   logToConsole('Joinen van kamer: ' + code, 'info');
   supabaseClient.from('rooms').select('*').eq('code', code).single().then(function(resp) {
     if (resp.error || !resp.data) { logToConsole('Kamer niet gevonden: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Kamer niet gevonden'; return; }
@@ -736,6 +741,27 @@ window.addEventListener('beforeunload', function() {
   }
   if (mpChannel) mpChannel.unsubscribe();
 });
+
+function leaveRoom() {
+  if (mpChannel) { mpChannel.unsubscribe(); mpChannel = null; }
+  if (supabaseClient && roomCode) {
+    supabaseClient.from('player_states').delete().eq('room_code', roomCode).eq('player_id', playerId).then(function() {});
+    if (isHost) {
+      supabaseClient.from('rooms').delete().eq('code', roomCode).then(function() {});
+    }
+  }
+  roomCode = null; mpOpponent = null; playerId = null; isHost = false;
+  gameActive = false;
+  document.getElementById('multiOptions').style.display = 'none';
+  document.getElementById('singleOptions').style.display = 'flex';
+  document.getElementById('modeToggle').style.display = 'flex';
+  document.getElementById('mpStatus').style.display = 'none';
+  document.getElementById('mpStatus').textContent = '';
+  document.getElementById('leaveRoomBtn').style.display = 'none';
+  document.getElementById('startBtn').style.display = 'inline-block';
+  document.getElementById('startScreen').style.display = 'flex';
+  location.reload();
+}
 
 function getEnemyPositions(count) {
   if (count === 1) return [{ x: 650, y: 250 }];
@@ -1045,8 +1071,8 @@ function startGame() {
       mpOpponent = new RobotArena('Tegenstander', oppStartX, 250, false);
       mpOpponent.color = '#ff4444';
       mpOpponent.isPlayer = false;
-      mpOpponent.hp = 100;
-      mpOpponent.maxHp = 100;
+      mpOpponent.hp = 200;
+      mpOpponent.maxHp = 200;
     } else {
       mpOpponent.x = oppStartX;
       mpOpponent.y = 250;
@@ -1635,12 +1661,12 @@ function gameLoop() {
     }
     // Safety net: always keep opponent in multiplayer
     if (gameMode === 'multi') {
-      if (!mpOpponent || mpOpponent.hp <= 0) {
+      if (!mpOpponent) {
         mpOpponent = new RobotArena('Tegenstander', isHost ? 650 : 150, 250, false);
         mpOpponent.color = '#ff4444';
         mpOpponent.isPlayer = false;
-        mpOpponent.hp = 100;
-        mpOpponent.maxHp = 100;
+        mpOpponent.hp = 200;
+        mpOpponent.maxHp = 200;
       }
       if (enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
     }
