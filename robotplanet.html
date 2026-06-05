@@ -641,7 +641,7 @@ function joinRoom() {
 function subscribeToRoom() {
   logToConsole('Subscriben naar kamer ' + roomCode, 'info');
   mpChannel = supabaseClient.channel('room-' + roomCode, {
-    config: { broadcast: { self: false } }
+    config: { broadcast: { self: false }, presence: { key: playerId } }
   });
   mpChannel.on('broadcast', { event: 'state' }, function(payload) {
     if (payload.player_id === playerId) return;
@@ -674,28 +674,36 @@ function subscribeToRoom() {
       payload.y + Math.sin(angle) * 200,
       w, mpOpponent);
   });
+  mpChannel.on('presence', { event: 'sync' }, function() {
+    var state = mpChannel.presenceState();
+    var count = Object.keys(state).length;
+    logToConsole('Presence sync: ' + count + ' speler(s)', 'info');
+    if (count >= 2 && !gameActive) {
+      document.getElementById('mpStatus').textContent = 'Tegenstander gevonden!';
+      setTimeout(function() { startGame(); }, 300);
+    }
+  });
+  mpChannel.on('presence', { event: 'leave' }, function() {
+    logToConsole('Tegenstander weg', 'warn');
+  });
   mpChannel.subscribe(function(status) {
     logToConsole('Channel status: ' + status, 'info');
     if (status === 'SUBSCRIBED') {
       document.getElementById('mpStatus').textContent = isHost ?
         'Kamer: ' + roomCode + ' — Wachten op tegenstander...' :
         'Verbonden met kamer ' + roomCode;
+      // Check na subscribe of er al 2 zijn (bv. host is sneller)
+      var state = mpChannel.presenceState();
+      var count = Object.keys(state).length;
+      if (count >= 2 && !gameActive) {
+        document.getElementById('mpStatus').textContent = 'Tegenstander gevonden!';
+        setTimeout(function() { startGame(); }, 300);
+      }
+    }
+    if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+      logToConsole('Channel error/closed: ' + status, 'err');
     }
   });
-  // Poll for guest joining (host)
-  if (isHost) {
-    var pollInterval = setInterval(function() {
-      if (!roomCode) { clearInterval(pollInterval); return; }
-      supabaseClient.from('rooms').select('guest_id,status').eq('code', roomCode).single().then(function(resp) {
-        if (resp.data && resp.data.guest_id && mpChannel) {
-          clearInterval(pollInterval);
-          logToConsole('Tegenstander gedetecteerd! guest_id=' + resp.data.guest_id, 'info');
-          document.getElementById('mpStatus').textContent = 'Kamer: ' + roomCode + ' — Tegenstander joined!';
-          setTimeout(function() { startGame(); }, 500);
-        }
-      });
-    }, 1000);
-  }
 }
 
 function sendState() {
