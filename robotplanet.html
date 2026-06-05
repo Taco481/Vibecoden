@@ -335,7 +335,7 @@
       <h1 id="resultTitle">🏆 VICTORY!</h1>
       <p id="resultMsg"></p>
       <p class="sub" id="resultRounds"></p>
-      <button onclick="location.reload()">⚔️ NOG EEN KEER</button>
+      <button onclick="backToLobby()">⚔️ NOG EEN KEER</button>
     </div>
   </div>
 
@@ -555,6 +555,7 @@ function setDifficulty(n) {
 }
 
 var gameMode = 'single';
+var mpDisconnectTimer = 0;
 
 function setGameMode(mode) {
   gameMode = mode;
@@ -653,8 +654,9 @@ function subscribeToRoom() {
       mpOpponent.targetTurretAngle = data.turret_angle || mpOpponent.targetTurretAngle;
       mpOpponent.shield = data.shield || mpOpponent.shield;
       mpOpponent.stunned = data.stunned !== undefined ? data.stunned : mpOpponent.stunned;
+      mpOpponent.weapon = data.weapon;
       mpOpponent.shakeTimer = 4;
-    }
+      mpDisconnectTimer = 0;
   });
   // Shots via Broadcast
   mpChannel.on('broadcast', { event: 'shot' }, function(payload) {
@@ -782,6 +784,26 @@ function leaveRoom() {
   document.getElementById('startBtn').style.display = 'inline-block';
   document.getElementById('startScreen').style.display = 'flex';
   location.reload();
+}
+
+function backToLobby() {
+  if (mpChannel) { mpChannel.unsubscribe(); mpChannel = null; }
+  if (supabaseClient && roomCode) {
+    supabaseClient.from('player_states').delete().eq('room_code', roomCode).eq('player_id', playerId).then(function() {});
+    if (isHost) supabaseClient.from('rooms').delete().eq('code', roomCode).then(function() {});
+  }
+  roomCode = null; mpOpponent = null; playerId = null; isHost = false;
+  mpDisconnectTimer = 0;
+  gameActive = false;
+  document.getElementById('gameOverlay').classList.remove('show');
+  document.getElementById('startScreen').style.display = 'flex';
+  document.getElementById('multiOptions').style.display = 'none';
+  document.getElementById('singleOptions').style.display = 'flex';
+  document.getElementById('modeToggle').style.display = 'flex';
+  document.getElementById('mpStatus').style.display = 'none';
+  document.getElementById('leaveRoomBtn').style.display = 'none';
+  document.getElementById('startBtn').style.display = 'inline-block';
+  setGameMode('single');
 }
 
 function getEnemyPositions(count) {
@@ -1685,6 +1707,19 @@ function gameLoop() {
       if (mpStateSendCounter % 3 === 0) upsertState();
       if (mpStateSendCounter % 180 === 0) upsertStateDB();
     }
+    if (gameMode === 'multi' && mpOpponent) {
+      mpDisconnectTimer++;
+      if (mpDisconnectTimer > 300 && gameActive) {
+        gameActive = false;
+        setTimeout(function() {
+          document.getElementById('resultTitle').textContent = "\uD83D\uDC4B TEGENSTANDER WEG";
+          document.getElementById('resultTitle').className = 'lose';
+          document.getElementById('resultMsg').textContent = 'Tegenstander heeft de verbinding verbroken';
+          document.getElementById('resultRounds').textContent = 'Gevecht duurde ' + Math.max(1, roundCount) + ' ronden';
+          document.getElementById('gameOverlay').classList.add('show');
+        }, 500);
+      }
+    }
     if (player.stunned && Math.random() < 0.008) player.stunned = false;
     for (var ei2 = 0; ei2 < enemies.length; ei2++) {
       if (enemies[ei2].stunned && Math.random() < 0.008) enemies[ei2].stunned = false;
@@ -1708,6 +1743,14 @@ function gameLoop() {
         ctx.font = 'bold 11px monospace';
         ctx.textAlign = 'center';
         ctx.fillText('⚔ ' + enemies[ei3].name, enemies[ei3].x, enemies[ei3].y - 40);
+        if (enemies[ei3].weapon !== undefined) {
+          var w = weapons[enemies[ei3].weapon];
+          if (w) {
+            ctx.fillStyle = w.color;
+            ctx.font = '10px monospace';
+            ctx.fillText('[' + w.name + ']', enemies[ei3].x, enemies[ei3].y - 28);
+          }
+        }
       }
     }
   }
