@@ -659,12 +659,12 @@ function subscribeToRoom() {
       document.getElementById('mpStatus').textContent = 'Tegenstander gevonden!';
       if (!gameActive) setTimeout(function() { startGame(); }, 300);
     } else {
-      mpOpponent.x = data.x || mpOpponent.x;
-      mpOpponent.y = data.y || mpOpponent.y;
+      mpOpponent.targetX = data.x;
+      mpOpponent.targetY = data.y;
       mpOpponent.hp = data.hp;
       mpOpponent.maxHp = data.max_hp || 200;
-      mpOpponent.bodyAngle = data.body_angle || 0;
-      mpOpponent.turretAngle = data.turret_angle || 0;
+      mpOpponent.targetBodyAngle = data.body_angle || 0;
+      mpOpponent.targetTurretAngle = data.turret_angle || 0;
       mpOpponent.shield = data.shield || 0;
       mpOpponent.stunned = data.stunned || false;
       mpOpponent.shakeTimer = 4;
@@ -820,6 +820,8 @@ class RobotArena {
     this.moveSway = 0;
     this.bodyAngle = isPlayer ? 0 : Math.PI;
     this.turretAngle = isPlayer ? 0 : Math.PI;
+    this.targetBodyAngle = this.bodyAngle;
+    this.targetTurretAngle = this.turretAngle;
     this.lastMx = 0;
     this.lastMy = 0;
     this.aiCooldown = 40 + Math.random() * 40;
@@ -1678,7 +1680,11 @@ function gameLoop() {
     player.update();
     for (var ei = 0; ei < enemies.length; ei++) {
       if (gameMode === 'multi' && enemies[ei] === mpOpponent) {
-        // opponent position comes from network, only apply stun recovery
+        // Interpolatie naar netwerk target (soepele beweging)
+        enemies[ei].x += (enemies[ei].targetX - enemies[ei].x) * 0.2;
+        enemies[ei].y += (enemies[ei].targetY - enemies[ei].y) * 0.2;
+        enemies[ei].bodyAngle += (enemies[ei].targetBodyAngle - enemies[ei].bodyAngle) * 0.2;
+        enemies[ei].turretAngle += (enemies[ei].targetTurretAngle - enemies[ei].turretAngle) * 0.2;
         if (enemies[ei].stunned && Math.random() < 0.008) enemies[ei].stunned = false;
         if (enemies[ei].shakeTimer > 0) enemies[ei].shakeTimer--;
         if (enemies[ei].hitFlash > 0) enemies[ei].hitFlash--;
