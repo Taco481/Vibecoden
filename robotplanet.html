@@ -396,6 +396,7 @@ var projectiles = [], explosions = [], particles = [], sparks = [], hitTexts = [
 var keys = {};
 var selectedWeapon = 0, gameActive = false, canShoot = true;
 var shootCooldown = 0, screenShake = { x: 0, y: 0, intensity: 0 };
+var enemyCount = 1;
 
 document.addEventListener('mousemove', function(e) {
   var rect = canvas.getBoundingClientRect();
@@ -1544,6 +1545,19 @@ function drawJoystick() {
   ctx.beginPath(); ctx.arc(knobX, knobY, 18, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.beginPath(); ctx.arc(knobX, knobY, 8, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawArena() {
+  if (bgLoaded) {
+    ctx.drawImage(bgImage, 0, 0, W, H);
+  } else {
+    var grad = ctx.createRadialGradient(W/2, H/2, 50, W/2, H/2, 400);
+    grad.addColorStop(0, "#1a1a3a"); grad.addColorStop(0.5, "#12122a"); grad.addColorStop(1, "#080818");
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0, 0, W, H);
 }
 
 function drawAimLine() {
