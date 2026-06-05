@@ -254,20 +254,28 @@
 
   #errorConsole {
     position: fixed; bottom: 0; left: 0; right: 0;
-    background: rgba(0,0,0,0.85); color: #ff6666;
+    background: rgba(0,0,0,0.92); color: #ff6666;
     font: 12px monospace; padding: 6px 12px;
-    max-height: 80px; overflow-y: auto; z-index: 999;
+    max-height: 120px; overflow-y: auto; z-index: 999;
     border-top: 2px solid #ff4444; display: none;
     white-space: pre-wrap; word-break: break-all;
   }
-  #errorConsole.show { display: none; }
+  #errorConsole.show { display: block; }
   #errorConsole .err { color: #ff6666; }
   #errorConsole .warn { color: #ffaa44; }
   #errorConsole .info { color: #66ccff; }
+  #errorToggle {
+    position: fixed; bottom: 4px; right: 4px; z-index: 1000;
+    background: rgba(255,50,50,0.7); border: 1px solid rgba(255,100,100,0.5);
+    border-radius: 4px; padding: 2px 8px; color: #fff;
+    font: bold 11px monospace; cursor: pointer; display: none;
+  }
+  #errorToggle:hover { background: rgba(255,50,50,0.9); }
 </style>
 </head>
 <body>
 <div id="errorConsole"></div>
+<button id="errorToggle">LOG</button>
 
 <div class="wrapper">
   <div class="hp-section" id="hpSection">
@@ -340,9 +348,16 @@
 
 <script>
 var errConsole = document.getElementById('errorConsole');
+var errorToggle = document.getElementById('errorToggle');
+errorToggle.addEventListener('click', function() {
+  errConsole.classList.toggle('show');
+  errorToggle.textContent = errConsole.classList.contains('show') ? 'VERB' : 'LOG';
+});
 function logToConsole(msg, type) {
   if (!type) type = 'err';
+  errorToggle.style.display = 'block';
   errConsole.classList.add('show');
+  errorToggle.textContent = 'VERB';
   var div = document.createElement('div');
   div.className = type;
   div.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
@@ -571,6 +586,7 @@ function setGameMode(mode) {
 function initSupabase() {
   if (supabaseClient) return;
   if (!window.supabase) {
+    logToConsole('Supabase CDN niet geladen!', 'err');
     document.getElementById('mpStatus').style.display = 'block';
     document.getElementById('mpStatus').textContent = 'Fout: CDN niet geladen. Controleer internet.';
     return;
@@ -579,17 +595,21 @@ function initSupabase() {
     'https://eedbcqpygnwquhuvvoho.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlZGJjcXB5Z253cXVodXZ2b2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTY1MDQsImV4cCI6MjA5NjIzMjUwNH0.DlmmMqAhYHk4CUf5nWXZWn2im3Gx1vk5aEALZ2x1MmM'
   );
+  logToConsole('Supabase geinitialiseerd', 'info');
 }
 
 function createRoom() {
   initSupabase();
+  if (!supabaseClient) { logToConsole('createRoom: supabaseClient is null', 'err'); return; }
   playerId = 'p_' + Math.random().toString(36).substr(2, 8);
   isHost = true;
   roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+  logToConsole('Kamer aangemaakt: ' + roomCode, 'info');
   document.getElementById('mpStatus').style.display = 'block';
   document.getElementById('mpStatus').textContent = 'Kamer: ' + roomCode + ' — Wachten op speler...';
   supabaseClient.from('rooms').insert({ code: roomCode, host_id: playerId, status: 'waiting' }).then(function(resp) {
-    if (resp.error) { document.getElementById('mpStatus').textContent = 'Fout bij aanmaken kamer'; return; }
+    if (resp.error) { logToConsole('DB fout: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Fout bij aanmaken kamer'; return; }
+    logToConsole('Room in DB opgeslagen', 'info');
     subscribeToRoom();
   });
 }
@@ -598,16 +618,20 @@ function joinRoom() {
   var code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
   if (code.length < 3) { document.getElementById('mpStatus').textContent = 'Voer een geldige kamer code in'; document.getElementById('mpStatus').style.display = 'block'; return; }
   initSupabase();
+  if (!supabaseClient) { logToConsole('joinRoom: supabaseClient is null', 'err'); return; }
   playerId = 'p_' + Math.random().toString(36).substr(2, 8);
   isHost = false;
   roomCode = code;
   document.getElementById('mpStatus').style.display = 'block';
   document.getElementById('mpStatus').textContent = 'Joinen van kamer ' + code + '...';
+  logToConsole('Joinen van kamer: ' + code, 'info');
   supabaseClient.from('rooms').select('*').eq('code', code).single().then(function(resp) {
-    if (resp.error || !resp.data) { document.getElementById('mpStatus').textContent = 'Kamer niet gevonden'; return; }
+    if (resp.error || !resp.data) { logToConsole('Kamer niet gevonden: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Kamer niet gevonden'; return; }
+    logToConsole('Kamer gevonden, status: ' + resp.data.status, 'info');
     if (resp.data.status !== 'waiting') { document.getElementById('mpStatus').textContent = 'Kamer is al bezig'; return; }
     supabaseClient.from('rooms').update({ guest_id: playerId, status: 'playing' }).eq('code', code).then(function(upd) {
-      if (upd.error) { document.getElementById('mpStatus').textContent = 'Fout bij joinen'; return; }
+      if (upd.error) { logToConsole('Join update fout: ' + JSON.stringify(upd.error), 'err'); document.getElementById('mpStatus').textContent = 'Fout bij joinen'; return; }
+      logToConsole('Room gejoined, start game', 'info');
       subscribeToRoom();
       startGame();
     });
@@ -615,6 +639,7 @@ function joinRoom() {
 }
 
 function subscribeToRoom() {
+  logToConsole('Subscriben naar kamer ' + roomCode, 'info');
   mpChannel = supabaseClient.channel('room-' + roomCode, {
     config: { broadcast: { self: false } }
   });
@@ -640,7 +665,7 @@ function subscribeToRoom() {
   });
   mpChannel.on('broadcast', { event: 'shot' }, function(payload) {
     if (payload.player_id === playerId) return;
-    if (!mpOpponent) return;
+    if (!mpOpponent) { logToConsole('Shot ontvangen maar mpOpponent is null', 'warn'); return; }
     var w = weapons[payload.weapon];
     if (!w) return;
     var angle = payload.angle;
@@ -650,6 +675,7 @@ function subscribeToRoom() {
       w, mpOpponent);
   });
   mpChannel.subscribe(function(status) {
+    logToConsole('Channel status: ' + status, 'info');
     if (status === 'SUBSCRIBED') {
       document.getElementById('mpStatus').textContent = isHost ?
         'Kamer: ' + roomCode + ' — Wachten op tegenstander...' :
@@ -663,6 +689,7 @@ function subscribeToRoom() {
       supabaseClient.from('rooms').select('guest_id,status').eq('code', roomCode).single().then(function(resp) {
         if (resp.data && resp.data.guest_id && mpChannel) {
           clearInterval(pollInterval);
+          logToConsole('Tegenstander gedetecteerd! guest_id=' + resp.data.guest_id, 'info');
           document.getElementById('mpStatus').textContent = 'Kamer: ' + roomCode + ' — Tegenstander joined!';
           setTimeout(function() { startGame(); }, 500);
         }
@@ -986,8 +1013,9 @@ function startGame() {
   var input = document.getElementById('nameInput');
   var pName = input ? input.value.trim() || "MechWarrior" : "MechWarrior";
   if (gameMode === 'multi') {
-    if (!roomCode) return;
-    if (gameActive) return;
+    if (!roomCode) { logToConsole('startGame MP: roomCode is null', 'err'); return; }
+    if (gameActive) { logToConsole('startGame MP: game al actief', 'warn'); return; }
+    logToConsole('startGame MP: isHost=' + isHost + ' room=' + roomCode, 'info');
     enemyCount = 1;
     var playerStartX = isHost ? 150 : 650;
     player = new RobotArena(pName, playerStartX, 250, true);
