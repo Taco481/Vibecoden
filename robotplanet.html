@@ -19,7 +19,6 @@
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
-    touch-action: none;
     -webkit-touch-callout: none;
   }
   .wrapper { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; max-width: 820px; padding: 0 4px; }
@@ -295,7 +294,7 @@
     <div class="start-screen" id="startScreen">
       <h1>⚡ ROBOTPLANET</h1>
       <div class="tagline">— BATTLE ARENA —</div>
-      <div class="enemy-select" style="margin-bottom:12px;justify-content:center">
+      <div id="modeToggle" class="enemy-select" style="margin-bottom:12px;justify-content:center">
         <button class="mode-main-btn active" onclick="setGameMode('single')">Singleplayer</button>
         <button class="mode-main-btn" onclick="setGameMode('multi')">Multiplayer</button>
       </div>
@@ -397,6 +396,10 @@ var keys = {};
 var selectedWeapon = 0, gameActive = false, canShoot = true;
 var shootCooldown = 0, screenShake = { x: 0, y: 0, intensity: 0 };
 var enemyCount = 1;
+var controlMode = 'kbm';
+var joystick = { active: false, centerX: 0, centerY: 0, dx: 0, dy: 0, dist: 0, touchId: -1 };
+var aimActive = false, aimDragged = false, aimX = 0, aimY = 0, aimTouchId = -1;
+var mouseX = 0, mouseY = 0, fireBtnHeld = false;
 
 document.addEventListener('mousemove', function(e) {
   var rect = canvas.getBoundingClientRect();
@@ -560,7 +563,7 @@ var mpDisconnectTimer = 0;
 function setGameMode(mode) {
   gameMode = mode;
   // Reset multiplayer state when switching
-  if (mode === 'single') { mpOpponent = null; roomCode = null; if (mpChannel) { mpChannel.unsubscribe(); mpChannel = null; } }
+  if (mode === 'single') { mpOpponent = null; roomCode = null; if (typeof mpChannel !== 'undefined' && mpChannel) { mpChannel.unsubscribe(); mpChannel = null; } }
   var btns = document.querySelectorAll('.mode-main-btn');
   for (var i = 0; i < btns.length; i++) {
     var isActive = btns[i].textContent.toLowerCase().indexOf(mode) !== -1;
