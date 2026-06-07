@@ -645,7 +645,7 @@ function setDifficulty(n) {
 var gameMode = 'single';
 var mpDisconnectTimer = 0;
 var difficulty = 0;
-var mpChannel, supabaseClient, roomCode, playerId, isHost, mpOpponent;
+var mpChannel, supabaseClient, roomCode, playerId, isHost, mpOpponent, mpStateSendCounter = 0;
 
 function setGameMode(mode) {
   gameMode = mode;
