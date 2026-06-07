@@ -723,9 +723,9 @@ function subscribeToRoom() {
   logToConsole('Subscribing to room ' + roomCode, 'info');
   mpChannel = supabaseClient.channel('room-' + roomCode);
   // State via Broadcast (fast, no DB)
-  mpChannel.on('broadcast', { event: 'state' }, function(payload) {
-    if (payload.player_id === playerId) return;
-    var data = payload;
+  mpChannel.on('broadcast', { event: 'state' }, function(msg) {
+    var data = msg.payload || msg;
+    if (data.player_id === playerId) return;
     if (!mpOpponent) {
       mpOpponent = new RobotArena(data.name || 'Opponent', data.x || 650, data.y || 250, false);
       mpOpponent.color = '#ff4444';
@@ -750,15 +750,16 @@ function subscribeToRoom() {
     }
   });
   // Shots via Broadcast
-  mpChannel.on('broadcast', { event: 'shot' }, function(payload) {
-    if (payload.player_id === playerId) return;
+  mpChannel.on('broadcast', { event: 'shot' }, function(msg) {
+    var data = msg.payload || msg;
+    if (data.player_id === playerId) return;
     if (!mpOpponent) { return; }
-    var w = weapons[payload.weapon];
+    var w = weapons[data.weapon];
     if (!w) return;
-    var angle = payload.angle;
-    fireProjectile(payload.x, payload.y,
-      payload.x + Math.cos(angle) * 200,
-      payload.y + Math.sin(angle) * 200,
+    var angle = data.angle;
+    fireProjectile(data.x, data.y,
+      data.x + Math.cos(angle) * 200,
+      data.y + Math.sin(angle) * 200,
       w, mpOpponent);
   });
   // DB fallback (for late joiners / reconnect)

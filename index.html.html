@@ -722,10 +722,10 @@ function joinRoom() {
 function subscribeToRoom() {
   logToConsole('Subscribing to room ' + roomCode, 'info');
   mpChannel = supabaseClient.channel('room-' + roomCode);
-  // State via Broadcast (snel, geen DB)
-  mpChannel.on('broadcast', { event: 'state' }, function(payload) {
-    if (payload.player_id === playerId) return;
-    var data = payload;
+  // State via Broadcast (fast, no DB)
+  mpChannel.on('broadcast', { event: 'state' }, function(msg) {
+    var data = msg.payload || msg;
+    if (data.player_id === playerId) return;
     if (!mpOpponent) {
       mpOpponent = new RobotArena(data.name || 'Opponent', data.x || 650, data.y || 250, false);
       mpOpponent.color = '#ff4444';
@@ -733,7 +733,7 @@ function subscribeToRoom() {
       mpOpponent.hp = data.hp || 200;
       mpOpponent.maxHp = data.max_hp || 200;
       if (gameActive && enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
-      document.getElementById('mpStatus').textContent = 'Opponent gevonden!';
+      document.getElementById('mpStatus').textContent = 'Opponent found!';
       if (!gameActive) setTimeout(function() { startGame(); }, 300);
     } else {
       mpOpponent.targetX = data.x || mpOpponent.targetX;
@@ -750,18 +750,19 @@ function subscribeToRoom() {
     }
   });
   // Shots via Broadcast
-  mpChannel.on('broadcast', { event: 'shot' }, function(payload) {
-    if (payload.player_id === playerId) return;
+  mpChannel.on('broadcast', { event: 'shot' }, function(msg) {
+    var data = msg.payload || msg;
+    if (data.player_id === playerId) return;
     if (!mpOpponent) { return; }
-    var w = weapons[payload.weapon];
+    var w = weapons[data.weapon];
     if (!w) return;
-    var angle = payload.angle;
-    fireProjectile(payload.x, payload.y,
-      payload.x + Math.cos(angle) * 200,
-      payload.y + Math.sin(angle) * 200,
+    var angle = data.angle;
+    fireProjectile(data.x, data.y,
+      data.x + Math.cos(angle) * 200,
+      data.y + Math.sin(angle) * 200,
       w, mpOpponent);
   });
-  // DB fallback (voor late joiners / reconnect)
+  // DB fallback (for late joiners / reconnect)
   mpChannel.on('postgres_changes',
     { event: '*', schema: 'public', table: 'player_states', filter: 'room_code=eq.' + roomCode },
     function(payload) {
@@ -773,7 +774,7 @@ function subscribeToRoom() {
       mpOpponent.hp = data.hp || 200;
       mpOpponent.maxHp = data.max_hp || 200;
       if (gameActive && enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
-      document.getElementById('mpStatus').textContent = 'Opponent gevonden!';
+      document.getElementById('mpStatus').textContent = 'Opponent found!';
       if (!gameActive) setTimeout(function() { startGame(); }, 300);
     }
   );
@@ -801,7 +802,7 @@ function subscribeToRoom() {
       // Check of er al een andere speler is via DB
       supabaseClient.from('player_states').select('*').eq('room_code', roomCode).then(function(r) {
         if (r.data && r.data.length >= 2 && !gameActive) {
-          document.getElementById('mpStatus').textContent = 'Opponent gevonden!';
+          document.getElementById('mpStatus').textContent = 'Opponent found!';
           setTimeout(function() { startGame(); }, 300);
         }
       });
