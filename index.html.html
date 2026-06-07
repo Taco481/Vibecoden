@@ -400,7 +400,7 @@
         <div id="multiOptions" style="display:none;width:100%">
           <div class="mp-actions">
             <button class="mp-btn" onclick="createRoom()">📡 New Room</button>
-            <span style="color:#5555aa;font-size:11px">— or —</span>
+            <span style="color:#5555aa;font-size:11px">— of —</span>
             <div class="mp-join-row">
               <input type="text" id="roomCodeInput" placeholder="Room code" maxlength="6">
               <button class="mp-btn" onclick="joinRoom()">Join</button>
@@ -539,7 +539,7 @@ function handleTouch(e) {
         aimY = ty;
       }
     } else {
-      // Left side — joystick (drive + aim)
+      // Left side — joystick (movement + aiming)
       activeJoystick = true;
       activeAim = true;
       if (t.identifier !== joystick.touchId) {
@@ -722,7 +722,7 @@ function joinRoom() {
 function subscribeToRoom() {
   logToConsole('Subscribing to room ' + roomCode, 'info');
   mpChannel = supabaseClient.channel('room-' + roomCode);
-  // State via Broadcast (fast, no DB)
+  // State via Broadcast (snel, geen DB)
   mpChannel.on('broadcast', { event: 'state' }, function(payload) {
     if (payload.player_id === playerId) return;
     var data = payload;
@@ -733,7 +733,7 @@ function subscribeToRoom() {
       mpOpponent.hp = data.hp || 200;
       mpOpponent.maxHp = data.max_hp || 200;
       if (gameActive && enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
-      document.getElementById('mpStatus').textContent = 'Opponent found!';
+      document.getElementById('mpStatus').textContent = 'Opponent gevonden!';
       if (!gameActive) setTimeout(function() { startGame(); }, 300);
     } else {
       mpOpponent.targetX = data.x || mpOpponent.targetX;
@@ -761,7 +761,7 @@ function subscribeToRoom() {
       payload.y + Math.sin(angle) * 200,
       w, mpOpponent);
   });
-  // DB fallback (for late joiners / reconnect)
+  // DB fallback (voor late joiners / reconnect)
   mpChannel.on('postgres_changes',
     { event: '*', schema: 'public', table: 'player_states', filter: 'room_code=eq.' + roomCode },
     function(payload) {
@@ -773,14 +773,14 @@ function subscribeToRoom() {
       mpOpponent.hp = data.hp || 200;
       mpOpponent.maxHp = data.max_hp || 200;
       if (gameActive && enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
-      document.getElementById('mpStatus').textContent = 'Opponent found!';
+      document.getElementById('mpStatus').textContent = 'Opponent gevonden!';
       if (!gameActive) setTimeout(function() { startGame(); }, 300);
     }
   );
   mpChannel.subscribe(function(status) {
     logToConsole('Channel status: ' + status, 'info');
     if (status === 'SUBSCRIBED') {
-      // Insert initial player state (DB fallback for late joiners)
+      // Insert initial player state (DB fallback voor late joiners)
       supabaseClient.from('player_states').upsert({
         room_code: roomCode, player_id: playerId, name: 'Player',
         x: isHost ? 150 : 650, y: 250, hp: 200, max_hp: 200,
@@ -791,17 +791,17 @@ function subscribeToRoom() {
       document.getElementById('mpStatus').textContent = isHost ?
         'Room: ' + roomCode + ' — Waiting for opponent...' :
         'Connected to room ' + roomCode;
-      // Direct hello broadcast — faster than DB replication
+      // Direct hello broadcast — sneller dan DB replication
       if (mpChannel) {
         mpChannel.send({
           type: 'broadcast', event: 'state',
           payload: { player_id: playerId, x: isHost ? 150 : 650, y: 250, hp: 200, max_hp: 200, name: 'Player' }
         });
       }
-      // Check if another player already exists via DB
+      // Check of er al een andere speler is via DB
       supabaseClient.from('player_states').select('*').eq('room_code', roomCode).then(function(r) {
         if (r.data && r.data.length >= 2 && !gameActive) {
-          document.getElementById('mpStatus').textContent = 'Opponent found!';
+          document.getElementById('mpStatus').textContent = 'Opponent gevonden!';
           setTimeout(function() { startGame(); }, 300);
         }
       });
@@ -811,7 +811,7 @@ function subscribeToRoom() {
 
 function upsertState() {
   if (!mpChannel || !player || !roomCode) return;
-  // Broadcast for real-time (no DB needed)
+  // Broadcast voor real-time (geen DB nodig)
   mpChannel.send({
     type: 'broadcast', event: 'state',
     payload: {
@@ -825,7 +825,7 @@ function upsertState() {
   });
 }
 
-// DB backup every 2 seconds for late joiners
+// DB backup elke 2 seconden voor late joiners
 function upsertStateDB() {
   if (!supabaseClient || !player || !roomCode) return;
   supabaseClient.from('player_states').upsert({
@@ -1769,7 +1769,7 @@ function gameLoop() {
     player.update();
     for (var ei = 0; ei < enemies.length; ei++) {
       if (gameMode === 'multi' && enemies[ei] === mpOpponent) {
-        // Interpolation to network target (smooth movement)
+        // Interpolatie naar netwerk target (soepele beweging)
         enemies[ei].x += (enemies[ei].targetX - enemies[ei].x) * 0.2;
         enemies[ei].y += (enemies[ei].targetY - enemies[ei].y) * 0.2;
         enemies[ei].bodyAngle += (enemies[ei].targetBodyAngle - enemies[ei].bodyAngle) * 0.2;
@@ -1828,7 +1828,7 @@ function gameLoop() {
   for (var ei3 = 0; ei3 < enemies.length; ei3++) {
     if (enemies[ei3].alive()) {
       enemies[ei3].draw();
-      // Label above opponent in multiplayer
+      // Label boven tegenstander in multiplayer
       if (gameMode === 'multi') {
         ctx.fillStyle = 'rgba(255,100,100,0.8)';
         ctx.font = 'bold 11px monospace';
