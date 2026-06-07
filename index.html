@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
@@ -352,15 +352,15 @@
   <div class="canvas-wrap">
     <canvas id="arena" width="800" height="500"></canvas>
     <div class="combo-display" id="comboDisplay"></div>
-    <button id="fireBtn">­ƒöÑ<br>FIRE</button>
+    <button id="fireBtn">🔥<br>FIRE</button>
     <div class="start-screen" id="startScreen">
       <div class="lobby-header">
-        <h1><span class="bolt">ÔÜí</span> ROBOTPLANET</h1>
-        <div class="tagline"><span>ÔÇö</span> battle arena <span>ÔÇö</span></div>
+        <h1><span class="bolt">⚡</span> ROBOTPLANET</h1>
+        <div class="tagline"><span>—</span> battle arena <span>—</span></div>
       </div>
 
       <div class="lobby-card">
-        <div class="card-title">ÔÇö Settings ÔÇö</div>
+        <div class="card-title">— Settings —</div>
 
         <div id="modeToggle" class="mode-toggle">
           <button class="mode-main-btn active" onclick="setGameMode('single')">Singleplayer</button>
@@ -399,27 +399,27 @@
 
         <div id="multiOptions" style="display:none;width:100%">
           <div class="mp-actions">
-            <button class="mp-btn" onclick="createRoom()">­ƒôí New Room</button>
-            <span style="color:#5555aa;font-size:11px">ÔÇö of ÔÇö</span>
+            <button class="mp-btn" onclick="createRoom()">📡 New Room</button>
+            <span style="color:#5555aa;font-size:11px">— or —</span>
             <div class="mp-join-row">
               <input type="text" id="roomCodeInput" placeholder="Room code" maxlength="6">
               <button class="mp-btn" onclick="joinRoom()">Join</button>
             </div>
             <div class="mp-status" id="mpStatus" style="display:none"></div>
-            <button class="mp-btn secondary" id="leaveRoomBtn" onclick="leaveRoom()" style="display:none">Ô£ò Leave</button>
+            <button class="mp-btn secondary" id="leaveRoomBtn" onclick="leaveRoom()" style="display:none">✕ Leave</button>
           </div>
         </div>
 
-        <button class="lobby-btn" onclick="startGame()" id="startBtn">ÔÜö FIGHT</button>
+        <button class="lobby-btn" onclick="startGame()" id="startBtn">⚔ FIGHT</button>
       </div>
 
       <div class="lobby-footer">ROBOTPLANET v1.0</div>
     </div>
     <div class="overlay" id="gameOverlay">
-      <h1 id="resultTitle">­ƒÅå VICTORY!</h1>
+      <h1 id="resultTitle">🏆 VICTORY!</h1>
       <p id="resultMsg"></p>
       <p class="sub" id="resultRounds"></p>
-      <button onclick="backToLobby()">ÔÜö´©Å PLAY AGAIN</button>
+      <button onclick="backToLobby()">⚔️ PLAY AGAIN</button>
     </div>
   </div>
 
@@ -523,7 +523,7 @@ function handleTouch(e) {
       continue;
     }
     if (tx > canvas.width * 0.5) {
-      // Right side ÔÇö aim zone
+      // Right side — aim zone
       activeAim = true;
       aimActive = true;
       if (t.identifier !== aimTouchId) {
@@ -539,7 +539,7 @@ function handleTouch(e) {
         aimY = ty;
       }
     } else {
-      // Left side ÔÇö joystick (movement + aiming)
+      // Left side — joystick (drive + aim)
       activeJoystick = true;
       activeAim = true;
       if (t.identifier !== joystick.touchId) {
@@ -589,7 +589,7 @@ function handleTouch(e) {
 
 function handleTouchEnd(e) {
   if (controlMode !== 'touch') return;
-  // Check if JOYSTICK touch ended ÔÇö fire in joystick direction
+  // Check if JOYSTICK touch ended — fire in joystick direction
   for (var ci = 0; ci < e.changedTouches.length; ci++) {
     if (e.changedTouches[ci].identifier === joystick.touchId && joystick.active) {
       if (joystick.dist > 0.1) {
@@ -601,7 +601,7 @@ function handleTouchEnd(e) {
       }
     }
   }
-  // Check if RIGHT SIDE aim touch ended ÔÇö fire
+  // Check if RIGHT SIDE aim touch ended — fire
   for (var ci = 0; ci < e.changedTouches.length; ci++) {
     if (e.changedTouches[ci].identifier === aimTouchId && aimActive) {
       if (aimDragged) {
@@ -684,7 +684,7 @@ function createRoom() {
   roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
   logToConsole('Room created: ' + roomCode, 'info');
   document.getElementById('mpStatus').style.display = 'block';
-  document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' ÔÇö Waiting for player...';
+  document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' — Waiting for player...';
   document.getElementById('leaveRoomBtn').style.display = 'inline-block';
   document.getElementById('startBtn').style.display = 'none';
   supabaseClient.from('rooms').insert({ code: roomCode, host_id: playerId, status: 'waiting' }).then(function(resp) {
@@ -780,7 +780,7 @@ function subscribeToRoom() {
   mpChannel.subscribe(function(status) {
     logToConsole('Channel status: ' + status, 'info');
     if (status === 'SUBSCRIBED') {
-      // Insert initial player state (DB fallback voor late joiners)
+      // Insert initial player state (DB fallback for late joiners)
       supabaseClient.from('player_states').upsert({
         room_code: roomCode, player_id: playerId, name: 'Player',
         x: isHost ? 150 : 650, y: 250, hp: 200, max_hp: 200,
@@ -789,16 +789,16 @@ function subscribeToRoom() {
         if (r.error) logToConsole('init state error: ' + JSON.stringify(r.error), 'err');
       });
       document.getElementById('mpStatus').textContent = isHost ?
-        'Room: ' + roomCode + ' ÔÇö Waiting for opponent...' :
+        'Room: ' + roomCode + ' — Waiting for opponent...' :
         'Connected to room ' + roomCode;
-      // Direct hello broadcast ÔÇö sneller dan DB replication
+      // Direct hello broadcast — faster than DB replication
       if (mpChannel) {
         mpChannel.send({
           type: 'broadcast', event: 'state',
           payload: { player_id: playerId, x: isHost ? 150 : 650, y: 250, hp: 200, max_hp: 200, name: 'Player' }
         });
       }
-      // Check of er al een andere speler is via DB
+      // Check if another player already exists via DB
       supabaseClient.from('player_states').select('*').eq('room_code', roomCode).then(function(r) {
         if (r.data && r.data.length >= 2 && !gameActive) {
           document.getElementById('mpStatus').textContent = 'Opponent found!';
@@ -811,7 +811,7 @@ function subscribeToRoom() {
 
 function upsertState() {
   if (!mpChannel || !player || !roomCode) return;
-  // Broadcast voor real-time (geen DB nodig)
+  // Broadcast for real-time (no DB needed)
   mpChannel.send({
     type: 'broadcast', event: 'state',
     payload: {
@@ -825,7 +825,7 @@ function upsertState() {
   });
 }
 
-// DB backup elke 2 seconden voor late joiners
+// DB backup every 2 seconds for late joiners
 function upsertStateDB() {
   if (!supabaseClient || !player || !roomCode) return;
   supabaseClient.from('player_states').upsert({
@@ -1637,7 +1637,7 @@ function drawHUD() {
       ctx.fillStyle = 'rgba(255,200,0,0.5)';
       ctx.font = 'bold 18px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('ÔÅ│ WAITING FOR OPPONENT...', W/2, H/2 - 40);
+      ctx.fillText('⏳ WAITING FOR OPPONENT...', W/2, H/2 - 40);
       ctx.fillStyle = 'rgba(255,255,200,0.3)';
       ctx.font = '12px monospace';
       ctx.fillText('mpOpponent: ' + (!!mpOpponent) + ' | enemies: ' + enemies.length + ' | alive: ' + (mpOpponent ? mpOpponent.alive() : 'n/a'), W/2, H/2 - 20);
@@ -1769,7 +1769,7 @@ function gameLoop() {
     player.update();
     for (var ei = 0; ei < enemies.length; ei++) {
       if (gameMode === 'multi' && enemies[ei] === mpOpponent) {
-        // Interpolatie naar netwerk target (soepele beweging)
+        // Interpolation to network target (smooth movement)
         enemies[ei].x += (enemies[ei].targetX - enemies[ei].x) * 0.2;
         enemies[ei].y += (enemies[ei].targetY - enemies[ei].y) * 0.2;
         enemies[ei].bodyAngle += (enemies[ei].targetBodyAngle - enemies[ei].bodyAngle) * 0.2;
@@ -1828,12 +1828,12 @@ function gameLoop() {
   for (var ei3 = 0; ei3 < enemies.length; ei3++) {
     if (enemies[ei3].alive()) {
       enemies[ei3].draw();
-      // Label boven tegenstander in multiplayer
+      // Label above opponent in multiplayer
       if (gameMode === 'multi') {
         ctx.fillStyle = 'rgba(255,100,100,0.8)';
         ctx.font = 'bold 11px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('ÔÜö ' + enemies[ei3].name, enemies[ei3].x, enemies[ei3].y - 40);
+        ctx.fillText('⚔ ' + enemies[ei3].name, enemies[ei3].x, enemies[ei3].y - 40);
         if (enemies[ei3].weapon !== undefined) {
           var w = weapons[enemies[ei3].weapon];
           if (w) {
