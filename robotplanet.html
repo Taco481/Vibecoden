@@ -213,8 +213,8 @@
     margin-top: 2px; text-transform: uppercase;
   }
   .lobby-header .tagline span { color: #ffdd44; }
-  .lobby-header .account-btns { position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; }
-  .lobby-header .account-info { position: absolute; top: 4px; right: 4px; display: flex; align-items: center; gap: 6px; font-size: 11px; }
+  .account-btns { display: flex; gap: 4px; }
+  .account-info { display: flex; align-items: center; gap: 6px; font-size: 11px; }
   .acc-btn {
     background: rgba(40,40,80,0.7); border: 1px solid rgba(74,74,255,0.3);
     border-radius: 4px; color: #aaa; cursor: pointer; font-size: 10px;
@@ -383,14 +383,6 @@
       <div class="lobby-header">
         <h1><span class="bolt">⚡</span> ROBOTPLANET</h1>
         <div class="tagline"><span>—</span> battle arena <span>—</span></div>
-        <div class="account-btns" id="accountBtns">
-          <button class="acc-btn" id="loginBtn" onclick="showLoginForm()">Login</button>
-          <button class="acc-btn acc-reg" id="registerBtn" onclick="showLoginForm()">Register</button>
-        </div>
-        <div class="account-info" id="accountInfo" style="display:none">
-          <span id="lobbyMoneySmall" style="color:#ffdd44;font-weight:bold">$0</span>
-          <button class="acc-btn" onclick="logoutAccount()" style="font-size:9px;padding:2px 6px">✕</button>
-        </div>
       </div>
 
       <div class="lobby-card">
@@ -460,6 +452,8 @@
           </div>
         </div>
 
+        <button class="lobby-btn" onclick="startGame()" id="startBtn">⚔ FIGHT</button>
+
         <div id="accountLogin" style="display:none;width:100%;flex-direction:column;align-items:center;gap:6px;margin-top:8px;border-top:1px solid rgba(74,74,255,0.2);padding-top:8px">
           <div style="font-size:11px;color:#7777cc">Account</div>
           <div class="mp-join-row" style="max-width:200px">
@@ -476,7 +470,16 @@
           <div class="mp-status" id="accountStatus" style="display:none;font-size:10px"></div>
         </div>
 
-        <button class="lobby-btn" onclick="startGame()" id="startBtn">⚔ FIGHT</button>
+        <div id="accountBar" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(74,74,255,0.15)">
+          <div class="account-btns" id="accountBtns">
+            <button class="acc-btn" id="loginBtn" onclick="showLoginForm()">Login</button>
+            <button class="acc-btn acc-reg" id="registerBtn" onclick="showLoginForm()">Register</button>
+          </div>
+          <div class="account-info" id="accountInfo" style="display:none">
+            <span id="lobbyMoneySmall" style="color:#ffdd44;font-weight:bold">$0</span>
+            <button class="acc-btn" onclick="logoutAccount()" style="font-size:9px;padding:2px 6px">✕</button>
+          </div>
+        </div>
       </div>
 
       <div class="lobby-footer">ROBOTPLANET v1.0</div>
