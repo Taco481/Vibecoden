@@ -213,6 +213,16 @@
     margin-top: 2px; text-transform: uppercase;
   }
   .lobby-header .tagline span { color: #ffdd44; }
+  .lobby-header .account-btns { position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; }
+  .lobby-header .account-info { position: absolute; top: 4px; right: 4px; display: flex; align-items: center; gap: 6px; font-size: 11px; }
+  .acc-btn {
+    background: rgba(40,40,80,0.7); border: 1px solid rgba(74,74,255,0.3);
+    border-radius: 4px; color: #aaa; cursor: pointer; font-size: 10px;
+    padding: 3px 8px; font-family: inherit; transition: 0.1s;
+  }
+  .acc-btn:hover { background: rgba(60,60,120,0.9); color: #fff; }
+  .acc-btn.acc-reg { background: rgba(40,80,40,0.7); border-color: rgba(68,170,68,0.3); }
+  .acc-btn.acc-reg:hover { background: rgba(60,120,60,0.9); }
   .lobby-card {
     position: relative;
     background: rgba(10,10,35,0.85);
@@ -370,6 +380,14 @@
       <div class="lobby-header">
         <h1><span class="bolt">⚡</span> ROBOTPLANET</h1>
         <div class="tagline"><span>—</span> battle arena <span>—</span></div>
+        <div class="account-btns" id="accountBtns">
+          <button class="acc-btn" id="loginBtn" onclick="showLoginForm()">Login</button>
+          <button class="acc-btn acc-reg" id="registerBtn" onclick="showLoginForm()">Register</button>
+        </div>
+        <div class="account-info" id="accountInfo" style="display:none">
+          <span id="lobbyMoneySmall" style="color:#ffdd44;font-weight:bold">$0</span>
+          <button class="acc-btn" onclick="logoutAccount()" style="font-size:9px;padding:2px 6px">✕</button>
+        </div>
       </div>
 
       <div class="lobby-card">
@@ -439,7 +457,7 @@
           </div>
         </div>
 
-        <div id="accountLogin" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:8px;border-top:1px solid rgba(74,74,255,0.2);padding-top:8px">
+        <div id="accountLogin" style="display:none;width:100%;flex-direction:column;align-items:center;gap:6px;margin-top:8px;border-top:1px solid rgba(74,74,255,0.2);padding-top:8px">
           <div style="font-size:11px;color:#7777cc">Account</div>
           <div class="mp-join-row" style="max-width:200px">
             <input type="text" id="regUser" placeholder="Username" maxlength="20" style="font-size:12px">
@@ -450,11 +468,9 @@
           <div style="display:flex;gap:6px">
             <button class="mp-btn" style="padding:6px 14px;font-size:11px" onclick="loginAccount()">Login</button>
             <button class="mp-btn" style="padding:6px 14px;font-size:11px;background:linear-gradient(135deg,#44aa44,#228822)" onclick="registerAccount()">Register</button>
+            <button class="mp-btn secondary" style="padding:6px 14px;font-size:11px" onclick="hideLoginForm()">Cancel</button>
           </div>
           <div class="mp-status" id="accountStatus" style="display:none;font-size:10px"></div>
-          <div id="accountStats" style="display:none;color:#ffdd44;font:bold 12px monospace;text-shadow:0 0 8px rgba(255,221,68,0.3)"></div>
-          <div id="lobbyMoney" style="display:none;font-size:16px;font-weight:bold;color:#ffdd44;text-shadow:0 0 12px rgba(255,221,68,0.4)"></div>
-          <button class="mp-btn secondary" id="logoutBtn" onclick="logoutAccount()" style="display:none;padding:4px 12px;font-size:10px">Logout</button>
         </div>
 
         <button class="lobby-btn" onclick="startGame()" id="startBtn">⚔ FIGHT</button>
@@ -1017,6 +1033,8 @@ function backToLobby() {
   document.getElementById('leaveRoomBtn').style.display = 'none';
   document.getElementById('startBtn').style.display = 'inline-block';
   setGameMode('single');
+  var s = document.getElementById('lobbyMoneySmall');
+  if (s && loggedInUser) s.textContent = '$' + money;
 }
 
 function getEnemyPositions(count) {
@@ -2157,6 +2175,16 @@ async function initProfilesTable() {
   if (error) console.warn('init_profiles RPC not found, trying direct insert...');
 }
 
+function showLoginForm() {
+  var f = document.getElementById('accountLogin');
+  f.style.display = 'flex';
+}
+
+function hideLoginForm() {
+  document.getElementById('accountLogin').style.display = 'none';
+  document.getElementById('accountStatus').style.display = 'none';
+}
+
 var loggedInUser = null;
 var profileId = null;
 
@@ -2183,9 +2211,7 @@ async function registerAccount() {
     showAccountStatus('Error: ' + error.message); return;
   }
   loggedInUser = user; profileId = data.id;
-  showAccountStatus('Logged in as ' + user);
-  updateAccountUI();
-  loadProfileStats();
+  onLogin();
 }
 
 async function loginAccount() {
@@ -2198,44 +2224,29 @@ async function loginAccount() {
   var { data, error } = await supabaseClient.from('profiles').select('*').eq('username', user).eq('password', hash).single();
   if (error || !data) { showAccountStatus('Invalid username or password'); return; }
   loggedInUser = user; profileId = data.id; money = data.money || 0; killCount = data.kills || 0;
-  showAccountStatus('Logged in as ' + user);
-  updateAccountUI();
-  loadProfileStats();
+  onLogin();
+}
+
+function onLogin() {
+  hideLoginForm();
+  document.getElementById('accountBtns').style.display = 'none';
+  document.getElementById('accountInfo').style.display = 'flex';
+  document.getElementById('lobbyMoneySmall').textContent = '$' + money;
 }
 
 function logoutAccount() {
   loggedInUser = null; profileId = null;
-  showAccountStatus('Logged out');
-  updateAccountUI();
+  document.getElementById('accountInfo').style.display = 'none';
+  document.getElementById('accountBtns').style.display = 'flex';
   var mel = document.getElementById('moneyDisplay');
   if (mel) mel.textContent = '$0';
-  var lm = document.getElementById('lobbyMoney');
-  if (lm) lm.style.display = 'none';
-}
-
-function loadProfileStats() {
-  var el = document.getElementById('accountStats');
-  if (!el || !loggedInUser) return;
-  el.textContent = 'Kills: ' + killCount;
-  el.style.display = 'block';
-  var m = document.getElementById('lobbyMoney');
-  if (m) { m.textContent = '$' + money; m.style.display = 'block'; }
-}
-
-function updateAccountUI() {
-  var loginForm = document.getElementById('accountLogin');
-  var statsEl = document.getElementById('accountStats');
-  var statusEl = document.getElementById('accountStatus');
-  var logoutBtn = document.getElementById('logoutBtn');
-  loginForm.style.display = loggedInUser ? 'none' : 'flex';
-  if (statsEl) { statsEl.style.display = loggedInUser ? 'block' : 'none'; loadProfileStats(); }
-  if (logoutBtn) logoutBtn.style.display = loggedInUser ? 'inline-block' : 'none';
-  if (statusEl && loggedInUser) statusEl.textContent = 'Logged in as ' + loggedInUser;
 }
 
 async function saveProfileStats() {
   if (!profileId || !supabaseClient) return;
   await supabaseClient.from('profiles').update({ money: money, kills: killCount }).eq('id', profileId);
+  var s = document.getElementById('lobbyMoneySmall');
+  if (s) s.textContent = '$' + money;
 }
 </script>
 </body>
