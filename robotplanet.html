@@ -788,6 +788,7 @@ function joinRoom() {
   playerId = 'p_' + Math.random().toString(36).substr(2, 8);
   isHost = false;
   roomCode = code;
+  mpPlayerList = [];
   document.getElementById('mpStatus').style.display = 'block';
   document.getElementById('mpStatus').textContent = 'Joining room ' + code + '...';
   document.getElementById('leaveRoomBtn').style.display = 'inline-block';
@@ -1736,6 +1737,10 @@ function updateHP() {
   document.getElementById('pShield').textContent = player.shield > 0 ? ('\uD83D\uDEE1 ' + player.shield) : '';
   document.getElementById('pStun').textContent = player.stunned ? '\u26A1 STUN' : '';
 
+  // Rebuild enemy HP bars if count doesn't match enemies array
+  if (document.getElementById('enemyRow0') && !document.getElementById('enemyRow' + (enemies.length - 1))) {
+    buildEnemyHpBars(enemies.length);
+  }
   for (var i = 0; i < enemies.length; i++) {
     var e = enemies[i];
     var epct = (e.hp / e.maxHp) * 100;
