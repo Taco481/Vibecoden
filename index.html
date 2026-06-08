@@ -285,6 +285,11 @@
     width: auto;
   }
   .mp-join-row input:focus { border-color: #6a6aff; }
+  .mp-join-row select { background:#1a1a3a;color:#ddd;border:1px solid #4444aa;border-radius:4px;padding:4px 8px;font:12px monospace;outline:none; }
+  .mp-join-row select:focus { border-color:#6a6aff; }
+  .mp-player-list { color:#aaa; font:11px monospace; text-align:center; max-width:260px; width:100%; padding:4px 0; }
+  .mp-player-list .player-dot { display:inline-block; width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle; }
+  .mp-actions .lobby-btn { max-width:200px; padding:10px 24px; font-size:14px; letter-spacing:2px; animation:none; }
   .mp-join-row .mp-btn { max-width: none; width: auto; padding: 7px 14px; }
   .lobby-btn {
     background: linear-gradient(135deg, #ffdd44, #ffaa00);
@@ -312,6 +317,13 @@
     opacity: 0; transition: opacity 0.3s; z-index: 2; pointer-events: none;
   }
   .combo-display.show { opacity: 1; }
+
+  .money-display {
+    position: absolute; top: 10px; left: 15px;
+    font-size: 20px; font-weight: bold; color: #ffdd44;
+    text-shadow: 0 0 15px rgba(255,221,68,0.4);
+    z-index: 2; pointer-events: none; font-family: monospace;
+  }
 
   #errorConsole {
     position: fixed; bottom: 0; left: 0; right: 0;
@@ -352,6 +364,7 @@
   <div class="canvas-wrap">
     <canvas id="arena" width="800" height="500"></canvas>
     <div class="combo-display" id="comboDisplay"></div>
+    <div class="money-display" id="moneyDisplay">$0</div>
     <button id="fireBtn">🔥<br>FIRE</button>
     <div class="start-screen" id="startScreen">
       <div class="lobby-header">
@@ -405,8 +418,24 @@
               <input type="text" id="roomCodeInput" placeholder="Room code" maxlength="6">
               <button class="mp-btn" onclick="joinRoom()">Join</button>
             </div>
+            <div class="mp-join-row" style="margin-top:6px;flex-wrap:wrap;gap:6px;justify-content:center">
+              <select id="gameModeSelect" style="background:#1a1a3a;color:#ddd;border:1px solid #4444aa;border-radius:4px;padding:4px 8px;font:12px monospace">
+                <option value="ffa">Free-for-All</option>
+                <option value="teams">Teams</option>
+                <option value="koth">King of the Hill</option>
+              </select>
+              <select id="maxPlayersSelect" style="background:#1a1a3a;color:#ddd;border:1px solid #4444aa;border-radius:4px;padding:4px 8px;font:12px monospace">
+                <option value="2">2 Players</option>
+                <option value="3">3 Players</option>
+                <option value="4" selected>4 Players</option>
+                <option value="6">6 Players</option>
+                <option value="8">8 Players</option>
+              </select>
+            </div>
+            <div class="mp-player-list" id="mpPlayerList" style="margin-top:6px;color:#aaa;font:11px monospace"></div>
             <div class="mp-status" id="mpStatus" style="display:none"></div>
             <button class="mp-btn secondary" id="leaveRoomBtn" onclick="leaveRoom()" style="display:none">✕ Leave</button>
+            <button class="lobby-btn" id="mpStartBtn" onclick="mpStartGame()" style="display:none">⚔ START GAME</button>
           </div>
         </div>
 
@@ -480,7 +509,7 @@ var projectiles = [], explosions = [], particles = [], sparks = [], hitTexts = [
 var keys = {};
 var selectedWeapon = 0, gameActive = false, canShoot = true;
 var shootCooldown = 0, screenShake = { x: 0, y: 0, intensity: 0 };
-var enemyCount = 1;
+var enemyCount = 1, money = 0;
 var controlMode = 'kbm';
 var joystick = { active: false, centerX: 0, centerY: 0, dx: 0, dy: 0, dist: 0, touchId: -1 };
 var aimActive = false, aimDragged = false, aimX = 0, aimY = 0, aimTouchId = -1;
@@ -645,12 +674,29 @@ function setDifficulty(n) {
 var gameMode = 'single';
 var mpDisconnectTimer = 0;
 var difficulty = 0;
-var mpChannel, supabaseClient, roomCode, playerId, isHost, mpOpponent, mpStateSendCounter = 0;
+var mpChannel, supabaseClient, roomCode, playerId, isHost, mpStateSendCounter = 0;
+var maxPlayers = 4;
+var gameModeType = 'ffa'; // 'ffa', 'teams', 'koth'
+var teamCount = 1;
+var teamColors = ['#ff4444', '#4488ff', '#44ff44', '#ffcc00', '#ff66cc', '#44ffff', '#ff8800', '#aa44ff'];
+var playerTeams = {};
+var mpOpponents = {}; // playerId -> RobotArena
+var kothZone = { x: 400, y: 250, radius: 55, owner: -1, progress: 0, maxProgress: 180, score: [], hillTeam: -1 };
+var mpPlayerList = []; // {id, name}
+var spawnPoints = [{x:150,y:250},{x:650,y:250},{x:150,y:100},{x:650,y:100},{x:400,y:50},{x:400,y:450},{x:150,y:400},{x:650,y:400}];
+
+function balanceTeams(playerCount) {
+  for (var t = 2; t <= Math.min(4, playerCount); t++)
+    if (playerCount % t === 0) return t;
+  return playerCount;
+}
 
 function setGameMode(mode) {
   gameMode = mode;
-  // Reset multiplayer state when switching
-  if (mode === 'single') { mpOpponent = null; roomCode = null; if (typeof mpChannel !== 'undefined' && mpChannel) { mpChannel.unsubscribe(); mpChannel = null; } }
+  if (mode === 'single') {
+    mpOpponents = {}; roomCode = null; playerId = null; isHost = false;
+    if (typeof mpChannel !== 'undefined' && mpChannel) { mpChannel.unsubscribe(); mpChannel = null; }
+  }
   var btns = document.querySelectorAll('.mode-main-btn');
   for (var i = 0; i < btns.length; i++) {
     var isActive = btns[i].textContent.toLowerCase().indexOf(mode) !== -1;
@@ -682,12 +728,19 @@ function createRoom() {
   playerId = 'p_' + Math.random().toString(36).substr(2, 8);
   isHost = true;
   roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
-  logToConsole('Room created: ' + roomCode, 'info');
+  gameModeType = document.getElementById('gameModeSelect').value;
+  maxPlayers = parseInt(document.getElementById('maxPlayersSelect').value, 10);
+  logToConsole('Room created: ' + roomCode + ' mode=' + gameModeType + ' max=' + maxPlayers, 'info');
   document.getElementById('mpStatus').style.display = 'block';
-  document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' — Waiting for player...';
+  document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' — Waiting for players...';
   document.getElementById('leaveRoomBtn').style.display = 'inline-block';
   document.getElementById('startBtn').style.display = 'none';
-  supabaseClient.from('rooms').insert({ code: roomCode, host_id: playerId, status: 'waiting' }).then(function(resp) {
+  mpPlayerList = [{id: playerId, name: document.getElementById('nameInput').value.trim() || "MechWarrior"}];
+  roomCode = roomCode;
+  supabaseClient.from('rooms').insert({
+    code: roomCode, host_id: playerId, status: 'waiting',
+    config: JSON.stringify({maxPlayers: maxPlayers, gameModeType: gameModeType})
+  }).then(function(resp) {
     if (resp.error) { logToConsole('DB error: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Error creating room'; return; }
     logToConsole('Room saved in DB', 'info');
     subscribeToRoom();
@@ -709,109 +762,160 @@ function joinRoom() {
   logToConsole('Joining room: ' + code, 'info');
   supabaseClient.from('rooms').select('*').eq('code', code).single().then(function(resp) {
     if (resp.error || !resp.data) { logToConsole('Room not found: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Room not found'; return; }
-    logToConsole('Room found, status: ' + resp.data.status, 'info');
-    if (resp.data.status !== 'waiting') { document.getElementById('mpStatus').textContent = 'Room already in progress'; return; }
-    supabaseClient.from('rooms').update({ guest_id: playerId, status: 'playing' }).eq('code', code).then(function(upd) {
-      if (upd.error) { logToConsole('Join update error: ' + JSON.stringify(upd.error), 'err'); document.getElementById('mpStatus').textContent = 'Error joining'; return; }
-      logToConsole('Room joined, starting game', 'info');
-      subscribeToRoom();
-    });
+    var room = resp.data;
+    if (room.status !== 'waiting') { document.getElementById('mpStatus').textContent = 'Room already in progress'; return; }
+    var cfg = room.config ? JSON.parse(room.config) : {};
+    maxPlayers = cfg.maxPlayers || 4;
+    gameModeType = cfg.gameModeType || 'ffa';
+    logToConsole('Room config: max=' + maxPlayers + ' mode=' + gameModeType, 'info');
+    subscribeToRoom();
   });
 }
 
 function subscribeToRoom() {
   logToConsole('Subscribing to room ' + roomCode, 'info');
   mpChannel = supabaseClient.channel('room-' + roomCode);
-  // State via Broadcast (fast, no DB)
+
   mpChannel.on('broadcast', { event: 'state' }, function(msg) {
     var data = msg.payload || msg;
     if (data.player_id === playerId) return;
-    if (!mpOpponent) {
-      mpOpponent = new RobotArena(data.name || 'Opponent', data.x || 650, data.y || 250, false);
-      mpOpponent.color = '#ff4444';
-      mpOpponent.isPlayer = false;
-      mpOpponent.hp = data.hp || 200;
-      mpOpponent.maxHp = data.max_hp || 200;
-      if (gameActive && enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
-      document.getElementById('mpStatus').textContent = 'Opponent found!';
-      if (!gameActive) setTimeout(function() { startGame(); }, 300);
+    var pid = data.player_id;
+    if (!mpOpponents[pid]) {
+      var idx = Object.keys(mpOpponents).length + 1;
+      var sp = spawnPoints[idx % spawnPoints.length];
+      mpOpponents[pid] = new RobotArena(data.name || 'Player', sp.x, sp.y, false);
+      mpOpponents[pid].color = teamColors[data.team || 0] || '#ff4444';
+      mpOpponents[pid].isPlayer = false;
+      mpOpponents[pid].hp = data.hp || 200;
+      mpOpponents[pid].maxHp = data.max_hp || 200;
+      mpOpponents[pid].team = data.team || 0;
+      if (gameActive && enemies.indexOf(mpOpponents[pid]) === -1) enemies.push(mpOpponents[pid]);
     } else {
-      mpOpponent.targetX = data.x || mpOpponent.targetX;
-      mpOpponent.targetY = data.y || mpOpponent.targetY;
-      mpOpponent.hp = data.hp !== undefined ? data.hp : mpOpponent.hp;
-      mpOpponent.maxHp = data.max_hp || mpOpponent.maxHp;
-      mpOpponent.targetBodyAngle = data.body_angle || mpOpponent.targetBodyAngle;
-      mpOpponent.targetTurretAngle = data.turret_angle || mpOpponent.targetTurretAngle;
-      mpOpponent.shield = data.shield || mpOpponent.shield;
-      mpOpponent.stunned = data.stunned !== undefined ? data.stunned : mpOpponent.stunned;
-      mpOpponent.weapon = data.weapon;
-      mpDisconnectTimer = 0;
+      var opp = mpOpponents[pid];
+      opp.targetX = data.x || opp.targetX;
+      opp.targetY = data.y || opp.targetY;
+      opp.hp = data.hp !== undefined ? data.hp : opp.hp;
+      opp.maxHp = data.max_hp || opp.maxHp;
+      opp.targetBodyAngle = data.body_angle || opp.targetBodyAngle;
+      opp.targetTurretAngle = data.turret_angle || opp.targetTurretAngle;
+      opp.shield = data.shield || opp.shield;
+      opp.stunned = data.stunned !== undefined ? data.stunned : opp.stunned;
+      opp.weapon = data.weapon;
+      opp.disconnectTimer = 0;
     }
   });
-  // Shots via Broadcast
+
   mpChannel.on('broadcast', { event: 'shot' }, function(msg) {
     var data = msg.payload || msg;
     if (data.player_id === playerId) return;
-    if (!mpOpponent) { return; }
+    var opp = mpOpponents[data.player_id];
+    if (!opp) return;
     var w = weapons[data.weapon];
     if (!w) return;
     var angle = data.angle;
     fireProjectile(data.x, data.y,
       data.x + Math.cos(angle) * 200,
       data.y + Math.sin(angle) * 200,
-      w, mpOpponent);
+      w, opp);
   });
-  // DB fallback (for late joiners / reconnect)
-  mpChannel.on('postgres_changes',
-    { event: '*', schema: 'public', table: 'player_states', filter: 'room_code=eq.' + roomCode },
-    function(payload) {
-      var data = payload.new;
-      if (!data || data.player_id === playerId || mpOpponent) return;
-      mpOpponent = new RobotArena(data.name || 'Opponent', data.x || 650, data.y || 250, false);
-      mpOpponent.color = '#ff4444';
-      mpOpponent.isPlayer = false;
-      mpOpponent.hp = data.hp || 200;
-      mpOpponent.maxHp = data.max_hp || 200;
-      if (gameActive && enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
-      document.getElementById('mpStatus').textContent = 'Opponent found!';
-      if (!gameActive) setTimeout(function() { startGame(); }, 300);
+
+  mpChannel.on('broadcast', { event: 'join' }, function(msg) {
+    var data = msg.payload || msg;
+    if (data.player_id === playerId) return;
+    var found = false;
+    for (var pi = 0; pi < mpPlayerList.length; pi++) {
+      if (mpPlayerList[pi].id === data.player_id) { found = true; break; }
     }
-  );
+    if (!found) mpPlayerList.push({id: data.player_id, name: data.name || 'Player'});
+    updatePlayerListUI();
+    if (isHost && mpPlayerList.length >= maxPlayers) {
+      document.getElementById('mpStartBtn').style.display = 'inline-block';
+    }
+  });
+
+  mpChannel.on('broadcast', { event: 'leave' }, function(msg) {
+    var data = msg.payload || msg;
+    if (data.player_id === playerId) return;
+    mpPlayerList = mpPlayerList.filter(function(p) { return p.id !== data.player_id; });
+    updatePlayerListUI();
+    if (mpOpponents[data.player_id]) {
+      var idx = enemies.indexOf(mpOpponents[data.player_id]);
+      if (idx !== -1) enemies.splice(idx, 1);
+      delete mpOpponents[data.player_id];
+    }
+  });
+
+  mpChannel.on('broadcast', { event: 'start' }, function(msg) {
+    var data = msg.payload || msg;
+    if (data.host_id === playerId) return;
+    logToConsole('Host started the game!', 'info');
+    // Sync mpPlayerList from current known players before starting
+    startGameMP();
+  });
+
   mpChannel.subscribe(function(status) {
     logToConsole('Channel status: ' + status, 'info');
     if (status === 'SUBSCRIBED') {
-      // Insert initial player state (DB fallback for late joiners)
       supabaseClient.from('player_states').upsert({
-        room_code: roomCode, player_id: playerId, name: 'Player',
-        x: isHost ? 150 : 650, y: 250, hp: 200, max_hp: 200,
+        room_code: roomCode, player_id: playerId,
+        name: document.getElementById('nameInput').value.trim() || "MechWarrior",
+        x: 400, y: 250, hp: 200, max_hp: 200,
         body_angle: 0, turret_angle: 0, shield: 0, stunned: false, alive: true, weapon: 0
       }, { onConflict: 'room_code,player_id' }).then(function(r) {
         if (r.error) logToConsole('init state error: ' + JSON.stringify(r.error), 'err');
       });
-      document.getElementById('mpStatus').textContent = isHost ?
-        'Room: ' + roomCode + ' — Waiting for opponent...' :
-        'Connected to room ' + roomCode;
-      // Direct hello broadcast — faster than DB replication
+      var myName = document.getElementById('nameInput').value.trim() || "MechWarrior";
+      if (mpPlayerList.filter(function(p){return p.id===playerId;}).length === 0) mpPlayerList.push({id: playerId, name: myName});
+      updatePlayerListUI();
       if (mpChannel) {
         mpChannel.send({
+          type: 'broadcast', event: 'join',
+          payload: { player_id: playerId, name: myName }
+        });
+        mpChannel.send({
           type: 'broadcast', event: 'state',
-          payload: { player_id: playerId, x: isHost ? 150 : 650, y: 250, hp: 200, max_hp: 200, name: 'Player' }
+          payload: { player_id: playerId, name: myName, x: 400, y: 250, hp: 200, max_hp: 200,
+            body_angle: 0, turret_angle: 0, shield: 0, stunned: false, alive: true, weapon: 0, team: 0 }
         });
       }
-      // Check if another player already exists via DB
-      supabaseClient.from('player_states').select('*').eq('room_code', roomCode).then(function(r) {
-        if (r.data && r.data.length >= 2 && !gameActive) {
-          document.getElementById('mpStatus').textContent = 'Opponent found!';
-          setTimeout(function() { startGame(); }, 300);
-        }
-      });
+      if (isHost) {
+        document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' — Waiting for players... (' + mpPlayerList.length + '/' + maxPlayers + ')';
+        document.getElementById('mpStartBtn').style.display = 'none';
+      } else {
+        document.getElementById('mpStatus').textContent = 'Connected to room ' + roomCode;
+      }
     }
   });
 }
 
+function updatePlayerListUI() {
+  var el = document.getElementById('mpPlayerList');
+  if (!el) return;
+  var html = '';
+  for (var i = 0; i < mpPlayerList.length; i++) {
+    var p = mpPlayerList[i];
+    var isMe = p.id === playerId;
+    html += '<div style="padding:4px 8px;border-radius:4px;background:' + (isMe ? 'rgba(68,255,136,0.1)' : 'rgba(255,255,255,0.05)') + '">';
+    html += '<span style="font-size:12px;color:' + (isMe ? '#44ff88' : '#ccc') + '">';
+    if (isMe) html += '▶ ';
+    html += (p.name || 'Player') + (isMe ? ' (you)' : '');
+    html += '</span></div>';
+  }
+  html += '<div style="font-size:10px;color:#666;padding:2px 8px">' + mpPlayerList.length + '/' + maxPlayers + ' players</div>';
+  el.innerHTML = html;
+}
+
+function mpStartGame() {
+  if (!isHost) return;
+  mpChannel.send({
+    type: 'broadcast', event: 'start',
+    payload: { host_id: playerId }
+  });
+  startGameMP();
+}
+
 function upsertState() {
   if (!mpChannel || !player || !roomCode) return;
-  // Broadcast for real-time (no DB needed)
   mpChannel.send({
     type: 'broadcast', event: 'state',
     payload: {
@@ -820,12 +924,12 @@ function upsertState() {
       hp: player.hp, max_hp: player.maxHp,
       body_angle: player.bodyAngle || 0, turret_angle: player.turretAngle || 0,
       shield: player.shield || 0, stunned: player.stunned || false,
-      alive: player.alive(), weapon: selectedWeapon, name: player.name || 'Player'
+      alive: player.alive(), weapon: selectedWeapon, name: player.name || 'Player',
+      team: player.team || 0
     }
   });
 }
 
-// DB backup every 2 seconds for late joiners
 function upsertStateDB() {
   if (!supabaseClient || !player || !roomCode) return;
   supabaseClient.from('player_states').upsert({
@@ -857,14 +961,14 @@ window.addEventListener('beforeunload', function() {
 });
 
 function leaveRoom() {
-  if (mpChannel) { mpChannel.unsubscribe(); mpChannel = null; }
+  if (mpChannel) { mpChannel.send({type:'broadcast',event:'leave',payload:{player_id:playerId}}); mpChannel.unsubscribe(); mpChannel = null; }
   if (supabaseClient && roomCode) {
     supabaseClient.from('player_states').delete().eq('room_code', roomCode).eq('player_id', playerId).then(function() {});
     if (isHost) {
       supabaseClient.from('rooms').delete().eq('code', roomCode).then(function() {});
     }
   }
-  roomCode = null; mpOpponent = null; playerId = null; isHost = false;
+  roomCode = null; mpOpponents = {}; playerId = null; isHost = false; mpPlayerList = [];
   gameActive = false;
   document.getElementById('multiOptions').style.display = 'none';
   document.getElementById('singleOptions').style.display = 'flex';
@@ -878,12 +982,12 @@ function leaveRoom() {
 }
 
 function backToLobby() {
-  if (mpChannel) { mpChannel.unsubscribe(); mpChannel = null; }
+  if (mpChannel) { mpChannel.send({type:'broadcast',event:'leave',payload:{player_id:playerId}}); mpChannel.unsubscribe(); mpChannel = null; }
   if (supabaseClient && roomCode) {
     supabaseClient.from('player_states').delete().eq('room_code', roomCode).eq('player_id', playerId).then(function() {});
     if (isHost) supabaseClient.from('rooms').delete().eq('code', roomCode).then(function() {});
   }
-  roomCode = null; mpOpponent = null; playerId = null; isHost = false;
+  roomCode = null; mpOpponents = {}; playerId = null; isHost = false; mpPlayerList = [];
   mpDisconnectTimer = 0;
   gameActive = false;
   document.getElementById('gameOverlay').classList.remove('show');
@@ -931,6 +1035,7 @@ class RobotArena {
     this.lastMx = 0;
     this.lastMy = 0;
     this.aiCooldown = 40 + Math.random() * 40;
+    this.team = 0;
   }
 
   alive() { return this.hp > 0; }
@@ -1189,53 +1294,102 @@ function fireProjectile(fromX, fromY, toX, toY, weapon, attacker) {
   }
 }
 
+function startGameMP() {
+  if (!roomCode) { logToConsole('startGame MP: roomCode is null', 'err'); return; }
+  if (gameActive) { logToConsole('startGame MP: game already active', 'warn'); return; }
+  // Ensure local player is in mpPlayerList
+  var myName = document.getElementById('nameInput').value.trim() || "MechWarrior";
+  if (mpPlayerList.filter(function(p){return p.id===playerId;}).length === 0) mpPlayerList.push({id: playerId, name: myName});
+  logToConsole('startGame MP: isHost=' + isHost + ' room=' + roomCode + ' players=' + mpPlayerList.length, 'info');
+  gameModeType = gameModeType || 'ffa';
+
+  // Assign teams
+  var playerCount = mpPlayerList.length;
+  var teamSize = 1;
+  if (gameModeType === 'teams') {
+    teamCount = balanceTeams(playerCount);
+    teamSize = playerCount / teamCount;
+  } else {
+    teamCount = playerCount;
+    teamSize = 1;
+  }
+  // Deterministic ordering (same on all clients): sort by player id
+  var sorted = mpPlayerList.slice().sort(function(a,b){return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;});
+  playerTeams = {};
+  for (var ti = 0; ti < sorted.length; ti++) {
+    playerTeams[sorted[ti].id] = Math.floor(ti / teamSize);
+  }
+
+  // Find my team and spawn
+  var myTeam = playerTeams[playerId] || 0;
+  var myIdx = 0;
+  for (var mi = 0; mi < sorted.length; mi++) {
+    if (sorted[mi].id === playerId) { myIdx = mi; break;
+    }
+  }
+  var sp = spawnPoints[myIdx % spawnPoints.length];
+  player = new RobotArena(sorted[myIdx].name || 'Player', sp.x, sp.y, true);
+  player.maxHp = 200;
+  player.hp = 200;
+  player.team = myTeam;
+  player.color = teamColors[myTeam % teamColors.length];
+
+  // Create opponents for all other players
+  enemies = [];
+  mpOpponents = {};
+  for (var oi = 0; oi < sorted.length; oi++) {
+    if (sorted[oi].id === playerId) continue;
+    var oid = sorted[oi].id;
+    var oTeam = playerTeams[oid] || 0;
+    var osp = spawnPoints[oi % spawnPoints.length];
+    var opp = new RobotArena(sorted[oi].name || 'Player', osp.x, osp.y, false);
+    opp.color = teamColors[oTeam % teamColors.length];
+    opp.isPlayer = false;
+    opp.hp = 200;
+    opp.maxHp = 200;
+    opp.team = oTeam;
+    mpOpponents[oid] = opp;
+    enemies.push(opp);
+  }
+
+  var input = document.getElementById('nameInput');
+  var pName = input ? input.value.trim() || "MechWarrior" : "MechWarrior";
+
+  projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
+  selectedWeapon = 0; gameActive = true; canShoot = true;
+  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0; money = 0;
+  screenShake.intensity = 0;
+
+  // Init KOTH
+  if (gameModeType === 'koth') {
+    kothZone.owner = -1;
+    kothZone.progress = 0;
+    kothZone.score = [];
+    for (var ks = 0; ks < teamCount; ks++) kothZone.score[ks] = 0;
+    kothZone.hillTeam = -1;
+  }
+
+  document.getElementById('startScreen').style.display = 'none';
+  var fireBtn = document.getElementById('fireBtn');
+  if (controlMode === 'touch') {
+    fireBtn.classList.add('show');
+    document.getElementById('controlsHint').innerHTML = 'Joystick = drive + aim &nbsp;|&nbsp; Release = shoot &nbsp;|&nbsp; Tap = auto-aim &nbsp;|&nbsp; Red button = fire';
+    document.querySelector('.weapon-bar').classList.add('touch-mode');
+  } else {
+    fireBtn.classList.remove('show');
+    document.getElementById('controlsHint').innerHTML = '<kbd>W A S D</kbd> move &nbsp;|&nbsp; <kbd>1-5</kbd> weapon &nbsp;|&nbsp; <kbd>Click</kbd> / <kbd>Space</kbd> fire';
+    document.querySelector('.weapon-bar').classList.remove('touch-mode');
+  }
+  updateWeaponBar();
+  buildEnemyHpBars(mpPlayerList.length - 1);
+  updateHP();
+  upsertState();
+}
+
 function startGame() {
   var input = document.getElementById('nameInput');
   var pName = input ? input.value.trim() || "MechWarrior" : "MechWarrior";
-  if (gameMode === 'multi') {
-    if (!roomCode) { logToConsole('startGame MP: roomCode is null', 'err'); return; }
-    if (gameActive) { logToConsole('startGame MP: game already active', 'warn'); return; }
-    logToConsole('startGame MP: isHost=' + isHost + ' room=' + roomCode, 'info');
-    enemyCount = 1;
-    var playerStartX = isHost ? 150 : 650;
-    player = new RobotArena(pName, playerStartX, 250, true);
-    player.maxHp = 200;
-    player.hp = 200;
-    enemies = [];
-    var oppStartX = isHost ? 650 : 150;
-    if (!mpOpponent) {
-      mpOpponent = new RobotArena('Opponent', oppStartX, 250, false);
-      mpOpponent.color = '#ff4444';
-      mpOpponent.isPlayer = false;
-      mpOpponent.hp = 200;
-      mpOpponent.maxHp = 200;
-    } else {
-      mpOpponent.x = oppStartX;
-      mpOpponent.y = 250;
-      mpOpponent.color = '#ff4444';
-      mpOpponent.isPlayer = false;
-    }
-    enemies.push(mpOpponent);
-    projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
-    selectedWeapon = 0; gameActive = true; canShoot = true;
-    shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0;
-    screenShake.intensity = 0;
-    document.getElementById('startScreen').style.display = 'none';
-    var fireBtn = document.getElementById('fireBtn');
-    if (controlMode === 'touch') {
-      fireBtn.classList.add('show');
-      document.getElementById('controlsHint').innerHTML = 'Joystick = drive + aim &nbsp;|&nbsp; Release = shoot &nbsp;|&nbsp; Tap = auto-aim &nbsp;|&nbsp; Red button = fire';
-      document.querySelector('.weapon-bar').classList.add('touch-mode');
-    } else {
-      fireBtn.classList.remove('show');
-      document.getElementById('controlsHint').innerHTML = '<kbd>W A S D</kbd> move &nbsp;|&nbsp; <kbd>1-5</kbd> weapon &nbsp;|&nbsp; <kbd>Click</kbd> / <kbd>Space</kbd> fire';
-      document.querySelector('.weapon-bar').classList.remove('touch-mode');
-    }
-    updateWeaponBar();
-    buildEnemyHpBars();
-    updateHP();
-    return;
-  }
+  if (gameMode === 'multi') { startGameMP(); return; }
   player = new RobotArena(pName, 150, 250, true);
   player.maxHp = 200;
   player.hp = 200;
@@ -1260,7 +1414,7 @@ function startGame() {
   }
   projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
   selectedWeapon = 0; gameActive = true; canShoot = true;
-  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0;
+  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0; money = 0;
   screenShake.intensity = 0;
   document.getElementById('startScreen').style.display = 'none';
   // Show/hide touch controls
@@ -1279,10 +1433,11 @@ function startGame() {
   updateHP();
 }
 
-function buildEnemyHpBars() {
+function buildEnemyHpBars(count) {
+  var n = count || Math.max(enemies.length, gameMode === 'multi' ? 8 : 1);
   var container = document.getElementById('enemyHpRows');
   container.innerHTML = '';
-  for (var i = 0; i < enemyCount; i++) {
+  for (var i = 0; i < n; i++) {
     var div = document.createElement('div');
     div.className = 'hp-row';
     div.id = 'enemyRow' + i;
@@ -1410,6 +1565,13 @@ function processHits() {
     let target = checkHit(p);
     if (!target) continue;
     var w = p.weapon;
+    // Friendly fire prevention in team mode
+    if (gameModeType === 'teams' && p.attacker && target && p.attacker.team !== undefined && target.team !== undefined && p.attacker.team === target.team) {
+      createExplosion(p.x, p.y, "#888888", 8, false);
+      addHitText(p.x, p.y, "FRIENDLY!", "#888888");
+      projectiles.splice(i, 1);
+      continue;
+    }
     if (w.special !== "multi" && Math.random() > w.accuracy) {
       createExplosion(p.x, p.y, "#888888", 8, false);
       addHitText(p.x, p.y, "MISS!", "#888888");
@@ -1437,6 +1599,11 @@ function processHits() {
     updateHP();
     if (!target.alive()) {
       killCount++;
+      if (gameMode !== 'multi') {
+        var reward = (difficulty + 1) * 1000;
+        money += reward;
+        addHitText(target.x, target.y - 30, '+' + reward + '$', '#ffdd44');
+      }
       createExplosion(target.x, target.y, "#ff8800", 60, true);
       setTimeout(function() { createExplosion(target.x, target.y, "#ff4400", 40, true); }, 100);
       setTimeout(function() { createExplosion(target.x, target.y, "#ffdd00", 30, true); }, 200);
@@ -1460,29 +1627,32 @@ function allEnemiesDead() {
 function checkGameOver() {
   var allDead = allEnemiesDead();
   if (gameMode === 'multi') {
-    // In multiplayer, also end if opponent disconnects or dies
-    if (!player.alive() || allDead) {
+    // N-player multiplayer: last player/team standing
+    if (!player.alive()) {
       gameActive = false;
       setTimeout(function() {
-        var overlay = document.getElementById('gameOverlay');
+        document.getElementById('resultTitle').textContent = "\uD83D\uDC80 DEFEATED";
+        document.getElementById('resultTitle').className = 'lose';
+        document.getElementById('resultMsg').textContent = player.name + ' has been destroyed...';
+        document.getElementById('resultRounds').textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+        document.getElementById('gameOverlay').classList.add('show');
+      }, 500);
+      return true;
+    }
+    if (allDead) {
+      gameActive = false;
+      setTimeout(function() {
         var title = document.getElementById('resultTitle');
         var msg = document.getElementById('resultMsg');
-        var rounds = document.getElementById('resultRounds');
-        if (player.alive() && allDead) {
-          title.textContent = "\uD83C\uDFC6 VICTORY!";
-          title.className = 'win';
-          msg.textContent = player.name + ' wins the online battle!';
-        } else if (!player.alive()) {
-          title.textContent = "\uD83D\uDC80 DEFEATED";
-          title.className = 'lose';
-          msg.textContent = player.name + ' has been destroyed...';
+        title.textContent = "\uD83C\uDFC6 VICTORY!";
+        title.className = 'win';
+        if (gameModeType === 'teams' && player.team !== undefined) {
+          msg.textContent = 'Team ' + player.team + ' eliminates all opponents!';
         } else {
-          title.textContent = "\uD83D\uDC4B OPPONENT LEFT";
-          title.className = 'lose';
-          msg.textContent = 'Opponent has disconnected';
+          msg.textContent = player.name + ' wins the online battle!';
         }
-        rounds.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
-        overlay.classList.add('show');
+        document.getElementById('resultRounds').textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+        document.getElementById('gameOverlay').classList.add('show');
       }, 500);
       return true;
     }
@@ -1540,6 +1710,8 @@ function updateHP() {
     var estu = document.getElementById('eStun' + i);
     if (estu) estu.textContent = e.stunned ? '\u26A1 STUN' : '';
   }
+  var mel = document.getElementById('moneyDisplay');
+  if (mel) mel.textContent = '$' + money;
 }
 
 function updateAI() {
@@ -1628,19 +1800,32 @@ function drawHUD() {
     document.getElementById('comboDisplay').classList.remove('show');
   }
   if (gameMode === 'multi') {
+    var aliveCount = 0;
+    if (mpOpponents) {
+      for (var hId in mpOpponents) {
+        if (mpOpponents.hasOwnProperty(hId) && mpOpponents[hId].alive()) aliveCount++;
+      }
+    }
     ctx.fillStyle = 'rgba(255,255,200,0.3)';
     ctx.font = '10px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText('MP: ' + (mpOpponent && mpOpponent.alive() ? 'Opponent active' : 'Waiting...') + ' | Enemies: ' + enemies.length, 10, H - 8);
-    // Large status in the middle if there is no opponent
-    if (!mpOpponent || !mpOpponent.alive() || enemies.length === 0) {
+    ctx.fillText('Enemies: ' + aliveCount + '/' + Object.keys(mpOpponents || {}).length + ' | Team: ' + (player.team !== undefined ? player.team : '-'), 10, H - 8);
+    if (gameModeType === 'koth') {
+      ctx.fillStyle = 'rgba(255,200,0,0.6)';
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'right';
+      var scoreText = '';
+      for (var ks = 0; ks < (kothZone.score || []).length; ks++) {
+        scoreText += 'T' + ks + ':' + (kothZone.score[ks] || 0) + ' ';
+      }
+      ctx.fillText('KOTH | ' + scoreText, W - 10, H - 8);
+    }
+    // Waiting for opponents
+    if (aliveCount === 0 && Object.keys(mpOpponents || {}).length > 0) {
       ctx.fillStyle = 'rgba(255,200,0,0.5)';
       ctx.font = 'bold 18px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('⏳ WAITING FOR OPPONENT...', W/2, H/2 - 40);
-      ctx.fillStyle = 'rgba(255,255,200,0.3)';
-      ctx.font = '12px monospace';
-      ctx.fillText('mpOpponent: ' + (!!mpOpponent) + ' | enemies: ' + enemies.length + ' | alive: ' + (mpOpponent ? mpOpponent.alive() : 'n/a'), W/2, H/2 - 20);
+      ctx.fillText('⏳ WAITING FOR PLAYERS...', W/2, H/2 - 40);
     }
   }
 }
@@ -1759,6 +1944,28 @@ function gameLoop() {
   ctx.translate(screenShake.x, screenShake.y);
   ctx.clearRect(-10, -10, W + 20, H + 20);
   drawArena();
+  if (gameModeType === 'koth') {
+    var kx = kothZone.x || W/2, ky = kothZone.y || H/2, kr = kothZone.radius || 60;
+    // Hill glow
+    ctx.save();
+    ctx.shadowColor = kothZone.hillTeam >= 0 ? teamColors[kothZone.hillTeam % teamColors.length] : 'rgba(255,200,0,0.5)';
+    ctx.shadowBlur = 40;
+    ctx.strokeStyle = kothZone.hillTeam >= 0 ? teamColors[kothZone.hillTeam % teamColors.length] : 'rgba(255,200,0,0.6)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath(); ctx.arc(kx, ky, kr, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,200,0,0.08)';
+    ctx.beginPath(); ctx.arc(kx, ky, kr, 0, Math.PI * 2); ctx.fill();
+    // Capture progress bar
+    if (kothZone.progress > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(Math.round(kothZone.progress) + '%', kx, ky + 4);
+    }
+    ctx.restore();
+  }
 
   if (gameActive) {
     if (!canShoot) { shootCooldown--; if (shootCooldown <= 0) canShoot = true; }
@@ -1768,47 +1975,106 @@ function gameLoop() {
     updateProjectiles();
     player.update();
     for (var ei = 0; ei < enemies.length; ei++) {
-      if (gameMode === 'multi' && enemies[ei] === mpOpponent) {
-        // Interpolation to network target (smooth movement)
-        enemies[ei].x += (enemies[ei].targetX - enemies[ei].x) * 0.2;
-        enemies[ei].y += (enemies[ei].targetY - enemies[ei].y) * 0.2;
-        enemies[ei].bodyAngle += (enemies[ei].targetBodyAngle - enemies[ei].bodyAngle) * 0.2;
-        enemies[ei].turretAngle += (enemies[ei].targetTurretAngle - enemies[ei].turretAngle) * 0.2;
-        if (enemies[ei].stunned && Math.random() < 0.008) enemies[ei].stunned = false;
-        if (enemies[ei].shakeTimer > 0) enemies[ei].shakeTimer--;
-        if (enemies[ei].hitFlash > 0) enemies[ei].hitFlash--;
-        if (enemies[ei].shootFlash > 0) enemies[ei].shootFlash--;
-      } else {
-        enemies[ei].update();
+      if (gameMode === 'multi' && mpOpponents) {
+        var isNetwork = false;
+        for (var nid in mpOpponents) {
+          if (mpOpponents.hasOwnProperty(nid) && mpOpponents[nid] === enemies[ei]) { isNetwork = true; break; }
+        }
+        if (isNetwork) {
+          // Interpolation to network target (smooth movement)
+          enemies[ei].x += (enemies[ei].targetX - enemies[ei].x) * 0.2;
+          enemies[ei].y += (enemies[ei].targetY - enemies[ei].y) * 0.2;
+          enemies[ei].bodyAngle += (enemies[ei].targetBodyAngle - enemies[ei].bodyAngle) * 0.2;
+          enemies[ei].turretAngle += (enemies[ei].targetTurretAngle - enemies[ei].turretAngle) * 0.2;
+          if (enemies[ei].stunned && Math.random() < 0.008) enemies[ei].stunned = false;
+          if (enemies[ei].shakeTimer > 0) enemies[ei].shakeTimer--;
+          if (enemies[ei].hitFlash > 0) enemies[ei].hitFlash--;
+          if (enemies[ei].shootFlash > 0) enemies[ei].shootFlash--;
+          continue;
+        }
       }
+      enemies[ei].update();
     }
-    // Safety net: always keep opponent in multiplayer
-    if (gameMode === 'multi') {
-      if (!mpOpponent) {
-        mpOpponent = new RobotArena('Opponent', isHost ? 650 : 150, 250, false);
-        mpOpponent.color = '#ff4444';
-        mpOpponent.isPlayer = false;
-        mpOpponent.hp = 200;
-        mpOpponent.maxHp = 200;
+    // Safety net: sync enemies with mpOpponents
+    if (gameMode === 'multi' && mpOpponents) {
+      for (var oid in mpOpponents) {
+        if (mpOpponents.hasOwnProperty(oid) && enemies.indexOf(mpOpponents[oid]) === -1) {
+          enemies.push(mpOpponents[oid]);
+        }
       }
-      if (enemies.indexOf(mpOpponent) === -1) enemies.push(mpOpponent);
     }
     if (gameMode === 'multi' && player && player.alive() && mpChannel) {
       mpStateSendCounter = (mpStateSendCounter || 0) + 1;
       if (mpStateSendCounter % 3 === 0) upsertState();
       if (mpStateSendCounter % 180 === 0) upsertStateDB();
     }
-    if (gameMode === 'multi' && mpOpponent) {
-      mpDisconnectTimer++;
-      if (mpDisconnectTimer > 300 && gameActive) {
-        gameActive = false;
-        setTimeout(function() {
-          document.getElementById('resultTitle').textContent = "\uD83D\uDC4B OPPONENT LEFT";
-          document.getElementById('resultTitle').className = 'lose';
-          document.getElementById('resultMsg').textContent = 'Opponent has disconnected';
-          document.getElementById('resultRounds').textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
-          document.getElementById('gameOverlay').classList.add('show');
-        }, 500);
+    // Disconnect detection per opponent
+    if (gameMode === 'multi' && mpOpponents) {
+      for (var od in mpOpponents) {
+        if (!mpOpponents.hasOwnProperty(od)) continue;
+        var odOpp = mpOpponents[od];
+        odOpp.disconnectTimer = (odOpp.disconnectTimer || 0) + 1;
+        if (odOpp.disconnectTimer > 300 && gameActive) {
+          var odIdx = enemies.indexOf(odOpp);
+          if (odIdx !== -1) enemies.splice(odIdx, 1);
+          delete mpOpponents[od];
+        }
+      }
+    }
+    // KOTH capture logic
+    if (gameModeType === 'koth' && kothZone) {
+      var kx = kothZone.x || W/2, ky = kothZone.y || H/2, kr = kothZone.radius || 60;
+      var playersInHill = [];
+      if (player && player.alive()) {
+        var pDist = Math.hypot(player.x - kx, player.y - ky);
+        if (pDist < kr) playersInHill.push({id: playerId, team: player.team || 0});
+      }
+      for (var khId in mpOpponents) {
+        if (mpOpponents.hasOwnProperty(khId)) {
+          var khOpp = mpOpponents[khId];
+          if (khOpp.alive() && Math.hypot(khOpp.x - kx, khOpp.y - ky) < kr) {
+            playersInHill.push({id: khId, team: khOpp.team || 0});
+          }
+        }
+      }
+      if (playersInHill.length > 0) {
+        // All players in hill must be on same team for progress
+        var firstTeam = playersInHill[0].team;
+        var sameTeam = playersInHill.every(function(pi) { return pi.team === firstTeam; });
+        if (sameTeam && playersInHill.length > 0) {
+          if (kothZone.hillTeam === -1 || kothZone.hillTeam === firstTeam) {
+            kothZone.hillTeam = firstTeam;
+            kothZone.progress = Math.min(100, kothZone.progress + 0.5);
+            if (kothZone.progress >= 100) {
+              kothZone.score[firstTeam] = (kothZone.score[firstTeam] || 0) + 1;
+              kothZone.progress = 0;
+              kothZone.hillTeam = -1;
+              // Check if a team reached winning score (e.g., 5)
+              if (kothZone.score[firstTeam] >= 5) {
+                gameActive = false;
+                setTimeout(function() {
+                  document.getElementById('resultTitle').textContent = "\uD83C\uDFC6 TEAM " + firstTeam + " WINS!";
+                  document.getElementById('resultTitle').className = 'win';
+                  document.getElementById('resultMsg').textContent = 'Team ' + firstTeam + ' controls the hill!';
+                  document.getElementById('resultRounds').textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+                  document.getElementById('gameOverlay').classList.add('show');
+                }, 500);
+              }
+            }
+          } else {
+            // Enemy team in hill, reset progress
+            kothZone.progress = Math.max(0, kothZone.progress - 0.5);
+            if (kothZone.progress <= 0) kothZone.hillTeam = -1;
+          }
+        } else {
+          // Contested or multiple teams, slow drain
+          kothZone.progress = Math.max(0, kothZone.progress - 0.3);
+          if (kothZone.progress <= 0) kothZone.hillTeam = -1;
+        }
+      } else {
+        // No one in hill, drain
+        kothZone.progress = Math.max(0, kothZone.progress - 0.2);
+        if (kothZone.progress <= 0) kothZone.hillTeam = -1;
       }
     }
     if (player.stunned && Math.random() < 0.008) player.stunned = false;
@@ -1830,10 +2096,12 @@ function gameLoop() {
       enemies[ei3].draw();
       // Label above opponent in multiplayer
       if (gameMode === 'multi') {
-        ctx.fillStyle = 'rgba(255,100,100,0.8)';
+        var teamColor = teamColors[enemies[ei3].team % teamColors.length] || '#ff4444';
+        ctx.fillStyle = teamColor;
         ctx.font = 'bold 11px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('⚔ ' + enemies[ei3].name, enemies[ei3].x, enemies[ei3].y - 40);
+        var teamTag = (gameModeType === 'teams' || gameModeType === 'koth') ? ' [T' + enemies[ei3].team + ']' : '';
+        ctx.fillText('⚔ ' + enemies[ei3].name + teamTag, enemies[ei3].x, enemies[ei3].y - 40);
         if (enemies[ei3].weapon !== undefined) {
           var w = weapons[enemies[ei3].weapon];
           if (w) {
