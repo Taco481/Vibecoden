@@ -191,7 +191,7 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     background: radial-gradient(ellipse at center, #0e0e2e, #040410);
     border-radius: 12px; z-index: 10;
-    overflow: hidden;
+    overflow-y: auto; padding: 10px 0; box-sizing: border-box;
   }
   .start-screen::before {
     content: ''; position: absolute; inset: 0;
@@ -200,7 +200,7 @@
   }
   .lobby-header {
     position: relative; display: flex; flex-direction: column; align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 16px; width: 100%;
   }
   .lobby-header h1 {
     font-size: 38px; color: #ffdd44;
