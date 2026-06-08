@@ -776,8 +776,7 @@ function createRoom() {
   mpPlayerList = [{id: playerId, name: document.getElementById('nameInput').value.trim() || "MechWarrior"}];
   roomCode = roomCode;
   supabaseClient.from('rooms').insert({
-    code: roomCode, host_id: playerId, status: 'waiting',
-    config: JSON.stringify({maxPlayers: maxPlayers, gameModeType: gameModeType})
+    code: roomCode, host_id: playerId, status: 'waiting'
   }).then(function(resp) {
     if (resp.error) { logToConsole('DB error: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Error creating room'; return; }
     logToConsole('Room saved in DB', 'info');
@@ -798,14 +797,11 @@ function joinRoom() {
   document.getElementById('leaveRoomBtn').style.display = 'inline-block';
   document.getElementById('startBtn').style.display = 'none';
   logToConsole('Joining room: ' + code, 'info');
-  supabaseClient.from('rooms').select('*').eq('code', code).single().then(function(resp) {
+  supabaseClient.from('rooms').select('code,status').eq('code', code).single().then(function(resp) {
     if (resp.error || !resp.data) { logToConsole('Room not found: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Room not found'; return; }
     var room = resp.data;
     if (room.status !== 'waiting') { document.getElementById('mpStatus').textContent = 'Room already in progress'; return; }
-    var cfg = room.config ? JSON.parse(room.config) : {};
-    maxPlayers = cfg.maxPlayers || 4;
-    gameModeType = cfg.gameModeType || 'ffa';
-    logToConsole('Room config: max=' + maxPlayers + ' mode=' + gameModeType, 'info');
+    logToConsole('Room config will arrive via channel broadcast', 'info');
     subscribeToRoom();
   });
 }
@@ -883,6 +879,13 @@ function subscribeToRoom() {
     }
   });
 
+  mpChannel.on('broadcast', { event: 'config' }, function(msg) {
+    var data = msg.payload || msg;
+    if (data.host_id === playerId) return;
+    if (data.maxPlayers) maxPlayers = data.maxPlayers;
+    if (data.gameModeType) gameModeType = data.gameModeType;
+  });
+
   mpChannel.on('broadcast', { event: 'start' }, function(msg) {
     var data = msg.payload || msg;
     if (data.host_id === playerId) return;
@@ -919,6 +922,8 @@ function subscribeToRoom() {
       if (isHost) {
         document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' — Waiting for players... (' + mpPlayerList.length + '/' + maxPlayers + ')';
         document.getElementById('mpStartBtn').style.display = 'none';
+        // Broadcast config so joining players can get game mode / max players
+        if (mpChannel) mpChannel.send({type:'broadcast',event:'config',payload:{host_id:playerId,maxPlayers:maxPlayers,gameModeType:gameModeType}});
       } else {
         document.getElementById('mpStatus').textContent = 'Connected to room ' + roomCode;
       }
