@@ -437,13 +437,6 @@
                 <option value="teams">Teams</option>
                 <option value="koth">King of the Hill</option>
               </select>
-              <select id="maxPlayersSelect" style="background:#1a1a3a;color:#ddd;border:1px solid #4444aa;border-radius:4px;padding:4px 8px;font:12px monospace">
-                <option value="2">2 Players</option>
-                <option value="3">3 Players</option>
-                <option value="4" selected>4 Players</option>
-                <option value="6">6 Players</option>
-                <option value="8">8 Players</option>
-              </select>
             </div>
             <div class="mp-player-list" id="mpPlayerList" style="margin-top:6px;color:#aaa;font:11px monospace"></div>
             <div class="mp-status" id="mpStatus" style="display:none"></div>
@@ -715,7 +708,7 @@ var gameMode = 'single';
 var mpDisconnectTimer = 0;
 var difficulty = 0;
 var mpChannel, supabaseClient, roomCode, playerId, isHost, mpStateSendCounter = 0;
-var maxPlayers = 4;
+var maxPlayers = 100;
 var gameModeType = 'ffa'; // 'ffa', 'teams', 'koth'
 var teamCount = 1;
 var teamColors = ['#ff4444', '#4488ff', '#44ff44', '#ffcc00', '#ff66cc', '#44ffff', '#ff8800', '#aa44ff'];
@@ -770,8 +763,7 @@ function createRoom() {
   isHost = true;
   roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
   gameModeType = document.getElementById('gameModeSelect').value;
-  maxPlayers = parseInt(document.getElementById('maxPlayersSelect').value, 10);
-  logToConsole('Room created: ' + roomCode + ' mode=' + gameModeType + ' max=' + maxPlayers, 'info');
+  logToConsole('Room created: ' + roomCode + ' mode=' + gameModeType, 'info');
   document.getElementById('mpStatus').style.display = 'block';
   document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' — Waiting for players...';
   document.getElementById('leaveRoomBtn').style.display = 'inline-block';
@@ -865,9 +857,6 @@ function subscribeToRoom() {
     }
     if (!found) mpPlayerList.push({id: data.player_id, name: data.name || 'Player'});
     updatePlayerListUI();
-    if (isHost && mpPlayerList.length >= maxPlayers) {
-      document.getElementById('mpStartBtn').style.display = 'inline-block';
-    }
   });
 
   mpChannel.on('broadcast', { event: 'leave' }, function(msg) {
@@ -885,7 +874,6 @@ function subscribeToRoom() {
   mpChannel.on('broadcast', { event: 'config' }, function(msg) {
     var data = msg.payload || msg;
     if (data.host_id === playerId) return;
-    if (data.maxPlayers) maxPlayers = data.maxPlayers;
     if (data.gameModeType) gameModeType = data.gameModeType;
   });
 
@@ -923,10 +911,9 @@ function subscribeToRoom() {
         });
       }
       if (isHost) {
-        document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' — Waiting for players... (' + mpPlayerList.length + '/' + maxPlayers + ')';
-        document.getElementById('mpStartBtn').style.display = 'none';
-        // Broadcast config so joining players can get game mode / max players
-        if (mpChannel) mpChannel.send({type:'broadcast',event:'config',payload:{host_id:playerId,maxPlayers:maxPlayers,gameModeType:gameModeType}});
+        document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' — ' + mpPlayerList.length + ' player(s) connected';
+        document.getElementById('mpStartBtn').style.display = 'inline-block';
+        if (mpChannel) mpChannel.send({type:'broadcast',event:'config',payload:{host_id:playerId,gameModeType:gameModeType}});
       } else {
         document.getElementById('mpStatus').textContent = 'Connected to room ' + roomCode;
       }
@@ -947,7 +934,7 @@ function updatePlayerListUI() {
     html += (p.name || 'Player') + (isMe ? ' (you)' : '');
     html += '</span></div>';
   }
-  html += '<div style="font-size:10px;color:#666;padding:2px 8px">' + mpPlayerList.length + '/' + maxPlayers + ' players</div>';
+  html += '<div style="font-size:10px;color:#666;padding:2px 8px">' + mpPlayerList.length + ' player(s)</div>';
   el.innerHTML = html;
 }
 
