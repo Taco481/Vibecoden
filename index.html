@@ -733,6 +733,7 @@ function setGameMode(mode) {
   }
   var btns = document.querySelectorAll('.mode-main-btn');
   for (var i = 0; i < btns.length; i++) {
+    if (!btns[i] || !btns[i].textContent) continue;
     var isActive = btns[i].textContent.toLowerCase().indexOf(mode) !== -1;
     btns[i].className = 'mode-main-btn' + (isActive ? ' active' : '');
   }
@@ -1498,6 +1499,7 @@ function updateWeaponBar() {
 function selectWeapon(i) { selectedWeapon = i; updateWeaponBar(); }
 
 document.addEventListener('keydown', function(e) {
+  if (!e || !e.key) return;
   keys[e.key.toLowerCase()] = true;
   var n = parseInt(e.key);
   if (n >= 1 && n <= 5) selectWeapon(n - 1);
@@ -1506,7 +1508,7 @@ document.addEventListener('keydown', function(e) {
     playerShoot();
   }
 });
-document.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; });
+document.addEventListener('keyup', function(e) { if (e && e.key) keys[e.key.toLowerCase()] = false; });
 
 canvas.addEventListener('click', function(e) {
   if (!gameActive || !player || !player.alive() || !canShoot) return;
@@ -2177,12 +2179,14 @@ async function initProfilesTable() {
 
 function showLoginForm() {
   var f = document.getElementById('accountLogin');
-  f.style.display = 'flex';
+  if (f) f.style.display = 'flex';
 }
 
 function hideLoginForm() {
-  document.getElementById('accountLogin').style.display = 'none';
-  document.getElementById('accountStatus').style.display = 'none';
+  var f = document.getElementById('accountLogin');
+  var s = document.getElementById('accountStatus');
+  if (f) f.style.display = 'none';
+  if (s) s.style.display = 'none';
 }
 
 var loggedInUser = null;
@@ -2229,16 +2233,21 @@ async function loginAccount() {
 
 function onLogin() {
   hideLoginForm();
-  document.getElementById('accountBtns').style.display = 'none';
-  document.getElementById('accountInfo').style.display = 'flex';
-  document.getElementById('lobbyMoneySmall').textContent = '$' + money;
+  var ab = document.getElementById('accountBtns');
+  var ai = document.getElementById('accountInfo');
+  var lm = document.getElementById('lobbyMoneySmall');
+  if (ab) ab.style.display = 'none';
+  if (ai) ai.style.display = 'flex';
+  if (lm) lm.textContent = '$' + money;
 }
 
 function logoutAccount() {
   loggedInUser = null; profileId = null;
-  document.getElementById('accountInfo').style.display = 'none';
-  document.getElementById('accountBtns').style.display = 'flex';
+  var ai = document.getElementById('accountInfo');
+  var ab = document.getElementById('accountBtns');
   var mel = document.getElementById('moneyDisplay');
+  if (ai) ai.style.display = 'none';
+  if (ab) ab.style.display = 'flex';
   if (mel) mel.textContent = '$0';
 }
 
