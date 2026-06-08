@@ -453,6 +453,7 @@
           </div>
           <div class="mp-status" id="accountStatus" style="display:none;font-size:10px"></div>
           <div id="accountStats" style="display:none;color:#ffdd44;font:bold 12px monospace;text-shadow:0 0 8px rgba(255,221,68,0.3)"></div>
+          <div id="lobbyMoney" style="display:none;font-size:16px;font-weight:bold;color:#ffdd44;text-shadow:0 0 12px rgba(255,221,68,0.4)"></div>
           <button class="mp-btn secondary" id="logoutBtn" onclick="logoutAccount()" style="display:none;padding:4px 12px;font-size:10px">Logout</button>
         </div>
 
@@ -2208,13 +2209,17 @@ function logoutAccount() {
   updateAccountUI();
   var mel = document.getElementById('moneyDisplay');
   if (mel) mel.textContent = '$0';
+  var lm = document.getElementById('lobbyMoney');
+  if (lm) lm.style.display = 'none';
 }
 
 function loadProfileStats() {
   var el = document.getElementById('accountStats');
   if (!el || !loggedInUser) return;
-  el.textContent = 'Money: $' + money + ' | Kills: ' + killCount;
+  el.textContent = 'Kills: ' + killCount;
   el.style.display = 'block';
+  var m = document.getElementById('lobbyMoney');
+  if (m) { m.textContent = '$' + money; m.style.display = 'block'; }
 }
 
 function updateAccountUI() {
