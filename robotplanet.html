@@ -715,6 +715,7 @@ var teamCount = 1;
 var teamColors = ['#ff4444', '#4488ff', '#44ff44', '#ffcc00', '#ff66cc', '#44ffff', '#ff8800', '#aa44ff'];
 var playerTeams = {};
 var mpOpponents = {}; // playerId -> RobotArena
+var lastEnemyBarCount = 0;
 var kothZone = { x: 400, y: 250, radius: 55, owner: -1, progress: 0, maxProgress: 180, score: [], hillTeam: -1 };
 var mpPlayerList = []; // {id, name}
 var spawnPoints = [{x:150,y:250},{x:650,y:250},{x:150,y:100},{x:650,y:100},{x:400,y:50},{x:400,y:450},{x:150,y:400},{x:650,y:400}];
@@ -1423,7 +1424,7 @@ function startGameMP() {
     document.querySelector('.weapon-bar').classList.remove('touch-mode');
   }
   updateWeaponBar();
-  buildEnemyHpBars(mpPlayerList.length - 1);
+  buildEnemyHpBars();
   updateHP();
   upsertState();
 }
@@ -1475,8 +1476,8 @@ function startGame() {
   updateHP();
 }
 
-function buildEnemyHpBars(count) {
-  var n = count || Math.max(enemies.length, gameMode === 'multi' ? 8 : 1);
+function buildEnemyHpBars() {
+  var n = enemies.length || 1;
   var container = document.getElementById('enemyHpRows');
   container.innerHTML = '';
   for (var i = 0; i < n; i++) {
@@ -1737,9 +1738,10 @@ function updateHP() {
   document.getElementById('pShield').textContent = player.shield > 0 ? ('\uD83D\uDEE1 ' + player.shield) : '';
   document.getElementById('pStun').textContent = player.stunned ? '\u26A1 STUN' : '';
 
-  // Rebuild enemy HP bars if count doesn't match enemies array
-  if (document.getElementById('enemyRow0') && !document.getElementById('enemyRow' + (enemies.length - 1))) {
-    buildEnemyHpBars(enemies.length);
+  // Rebuild enemy HP bars if enemy count changed
+  if (enemies.length !== lastEnemyBarCount) {
+    buildEnemyHpBars();
+    lastEnemyBarCount = enemies.length;
   }
   for (var i = 0; i < enemies.length; i++) {
     var e = enemies[i];
