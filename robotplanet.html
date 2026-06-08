@@ -792,13 +792,14 @@ function joinRoom() {
   document.getElementById('leaveRoomBtn').style.display = 'inline-block';
   document.getElementById('startBtn').style.display = 'none';
   logToConsole('Joining room: ' + code, 'info');
-  supabaseClient.from('rooms').select('code,status').eq('code', code).single().then(function(resp) {
-    if (resp.error || !resp.data) { logToConsole('Room not found: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Room not found'; return; }
-    var room = resp.data;
-    if (room.status !== 'waiting') { document.getElementById('mpStatus').textContent = 'Room already in progress'; return; }
-    logToConsole('Room config will arrive via channel broadcast', 'info');
-    subscribeToRoom();
-  });
+  subscribeToRoom();
+  // Timeout: if no config broadcast within 5s, room likely doesn't exist
+  setTimeout(function() {
+    if (document.getElementById('mpStatus').textContent === 'Joining room ' + code + '...') {
+      document.getElementById('mpStatus').textContent = 'Room not found';
+      logToConsole('Room not found (timeout)', 'err');
+    }
+  }, 5000);
 }
 
 function subscribeToRoom() {
@@ -875,6 +876,10 @@ function subscribeToRoom() {
     var data = msg.payload || msg;
     if (data.host_id === playerId) return;
     if (data.gameModeType) gameModeType = data.gameModeType;
+    // Received config -> room exists, update status
+    if (document.getElementById('mpStatus').textContent.indexOf('Joining room') !== -1) {
+      document.getElementById('mpStatus').textContent = 'Connected to room ' + roomCode;
+    }
   });
 
   mpChannel.on('broadcast', { event: 'start' }, function(msg) {
