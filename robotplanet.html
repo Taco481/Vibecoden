@@ -372,6 +372,7 @@
       <span class="stun-badge" id="pStun"></span>
     </div>
     <div id="enemyHpRows"></div>
+    <div id="enemyCount" style="font-size:10px;color:#888;text-align:center;margin-top:2px"></div>
   </div>
 
   <div class="canvas-wrap">
@@ -1753,6 +1754,12 @@ function updateHP() {
   }
   var mel = document.getElementById('moneyDisplay');
   if (mel) mel.textContent = '$' + money;
+  var ec = document.getElementById('enemyCount');
+  if (ec) {
+    var alive = 0;
+    for (var ei = 0; ei < enemies.length; ei++) { if (enemies[ei].alive()) alive++; }
+    ec.textContent = alive + ' enemy' + (alive !== 1 ? 'ies' : '') + ' remaining';
+  }
 }
 
 function updateAI() {
@@ -2135,21 +2142,19 @@ function gameLoop() {
   for (var ei3 = 0; ei3 < enemies.length; ei3++) {
     if (enemies[ei3].alive()) {
       enemies[ei3].draw();
-      // Label above opponent in multiplayer
-      if (gameMode === 'multi') {
-        var teamColor = teamColors[enemies[ei3].team % teamColors.length] || '#ff4444';
-        ctx.fillStyle = teamColor;
-        ctx.font = 'bold 11px monospace';
-        ctx.textAlign = 'center';
-        var teamTag = (gameModeType === 'teams' || gameModeType === 'koth') ? ' [T' + enemies[ei3].team + ']' : '';
-        ctx.fillText('⚔ ' + enemies[ei3].name + teamTag, enemies[ei3].x, enemies[ei3].y - 40);
-        if (enemies[ei3].weapon !== undefined) {
-          var w = weapons[enemies[ei3].weapon];
-          if (w) {
-            ctx.fillStyle = w.color;
-            ctx.font = '10px monospace';
-            ctx.fillText('[' + w.name + ']', enemies[ei3].x, enemies[ei3].y - 28);
-          }
+      // Label above opponent
+      var teamColor = teamColors[enemies[ei3].team % teamColors.length] || '#ff4444';
+      ctx.fillStyle = teamColor;
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'center';
+      var teamTag = (gameMode === 'multi' && (gameModeType === 'teams' || gameModeType === 'koth')) ? ' [T' + enemies[ei3].team + ']' : '';
+      ctx.fillText('⚔ ' + enemies[ei3].name + teamTag, enemies[ei3].x, enemies[ei3].y - 40);
+      if (enemies[ei3].weapon !== undefined) {
+        var w = weapons[enemies[ei3].weapon];
+        if (w) {
+          ctx.fillStyle = w.color;
+          ctx.font = '10px monospace';
+          ctx.fillText('[' + w.name + ']', enemies[ei3].x, enemies[ei3].y - 28);
         }
       }
     }
