@@ -67,6 +67,34 @@
   }
   .w-btn .key { font-size: 9px; color: #8888cc; display: block; }
   .w-btn .wname { font-weight: bold; font-size: 12px; }
+
+  .ability-bar {
+    display: flex; align-items: center; gap: 6px; padding: 2px 8px;
+    font: 11px monospace; color: #aaa;
+  }
+  .ability-bar .ab-key {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 3px; padding: 0 5px; font-weight: bold; font-size: 10px; color: #ffdd44;
+  }
+  .ability-bar .ab-ready { color: #44ff88; }
+  .ability-bar .ab-cooldown { color: #ff6644; }
+
+  .lobby-weapon-row {
+    display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; width: 100%;
+    margin-top: 6px;
+  }
+  .lobby-weapon-row .lw-btn {
+    background: rgba(20,20,60,0.7); border: 1px solid #3a3a8a;
+    border-radius: 6px; padding: 3px 10px; color: #aaa; font: 10px monospace; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  .lobby-weapon-row .lw-btn:hover { border-color: #6a6aff; background: rgba(40,40,100,0.8); }
+  .lobby-weapon-row .lw-btn.active {
+    border-color: #ffdd44; background: rgba(80,70,30,0.8);
+    box-shadow: 0 0 10px rgba(255,221,68,0.3); color: #fff;
+  }
+  .lobby-weapon-row .lw-btn.owned { color: #ddd; }
+  .lobby-weapon-row .lw-btn.locked { opacity: 0.4; cursor: default; }
   .w-btn.active .wname { color: #ffdd44; text-shadow: 0 0 10px rgba(255,221,68,0.5); }
 
   .hp-section { width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 2px; }
@@ -185,6 +213,49 @@
     box-shadow: 0 0 30px rgba(74,74,255,0.3);
   }
   .overlay button:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 0 50px rgba(74,74,255,0.6); }
+
+  .shop-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    background: rgba(5,5,20,0.95); border-radius: 12px;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    z-index: 15; overflow-y: auto; padding: 10px; box-sizing: border-box;
+  }
+  .shop-overlay.show { opacity: 1; pointer-events: all; }
+  .shop-overlay h2 { color: #ffdd44; font-size: 22px; margin: 4px 0; }
+  .shop-overlay .shop-money { color: #ffdd44; font-size: 14px; margin-bottom: 6px; }
+  .shop-overlay .shop-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+  .shop-overlay .shop-tab {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px; padding: 4px 16px; color: #888; font: 12px monospace; cursor: pointer;
+    font-family: inherit;
+  }
+  .shop-overlay .shop-tab.active { background: rgba(74,74,255,0.3); border-color: #4a4aff; color: #fff; }
+  .shop-overlay .shop-list { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 4px; }
+  .shop-overlay .shop-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px; padding: 6px 10px; gap: 6px;
+  }
+  .shop-overlay .shop-item.owned { border-color: rgba(68,255,136,0.2); }
+  .shop-overlay .shop-item.equipped { border-color: #44ff88; background: rgba(68,255,136,0.08); }
+  .shop-overlay .shop-item .si-name { color: #ddd; font-size: 12px; font-weight: bold; flex: 1; }
+  .shop-overlay .shop-item .si-desc { color: #888; font-size: 10px; }
+  .shop-overlay .shop-item .si-stats { color: #666; font-size: 9px; }
+  .shop-overlay .shop-btn {
+    background: linear-gradient(135deg, #4a4aff, #2a2acc); border: none;
+    border-radius: 4px; padding: 3px 10px; color: #fff; font: bold 10px monospace; cursor: pointer;
+    font-family: inherit; white-space: nowrap;
+  }
+  .shop-overlay .shop-btn:disabled { opacity: 0.4; cursor: default; }
+  .shop-overlay .shop-btn.equip { background: linear-gradient(135deg, #44aa44, #228822); }
+  .shop-overlay .shop-btn.owned-btn { background: linear-gradient(135deg, #666, #444); }
+  .shop-overlay .shop-close {
+    margin-top: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 6px; padding: 6px 24px; color: #ccc; font: 12px monospace; cursor: pointer;
+    font-family: inherit;
+  }
+  .shop-overlay .shop-close:hover { background: rgba(255,255,255,0.2); }
 
   .start-screen {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -335,33 +406,9 @@
     z-index: 2; pointer-events: none; font-family: monospace;
   }
 
-  #errorConsole {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: rgba(0,0,0,0.92); color: #ff6666;
-    font: 12px monospace; padding: 6px 12px;
-    max-height: 120px; overflow-y: auto; z-index: 999;
-    border-top: 2px solid #ff4444; display: none;
-    white-space: pre-wrap; word-break: break-all;
-  }
-  #errorConsole.show { display: block; }
-  #errorConsole, #errorConsole * { user-select: text; -webkit-user-select: text; }
-  #mpStatus, #mpStatus * { user-select: text; -webkit-user-select: text; }
-  .mp-status, .mp-status * { user-select: text; -webkit-user-select: text; }
-  #errorConsole .err { color: #ff6666; }
-  #errorConsole .warn { color: #ffaa44; }
-  #errorConsole .info { color: #66ccff; }
-  #errorToggle {
-    position: fixed; bottom: 4px; right: 4px; z-index: 1000;
-    background: rgba(255,50,50,0.7); border: 1px solid rgba(255,100,100,0.5);
-    border-radius: 4px; padding: 2px 8px; color: #fff;
-    font: bold 11px monospace; cursor: pointer; display: none;
-  }
-  #errorToggle:hover { background: rgba(255,50,50,0.9); }
 </style>
 </head>
 <body>
-<div id="errorConsole"></div>
-<button id="errorToggle">LOG</button>
 
 <div class="wrapper">
   <div class="hp-section" id="hpSection">
@@ -448,6 +495,8 @@
 
         <button class="lobby-btn" onclick="startGame()" id="startBtn">⚔ FIGHT</button>
 
+        <div id="lobbyWeaponRow" class="lobby-weapon-row" style="display:none"></div>
+
         <div id="accountLogin" style="display:none;width:100%;flex-direction:column;align-items:center;gap:6px;margin-top:8px;border-top:1px solid rgba(74,74,255,0.2);padding-top:8px">
           <div style="font-size:11px;color:#7777cc">Account</div>
           <div class="mp-join-row" style="max-width:200px">
@@ -470,7 +519,9 @@
             <button class="acc-btn acc-reg" id="registerBtn" onclick="showLoginForm()">Register</button>
           </div>
           <div class="account-info" id="accountInfo" style="display:none">
+            <span id="lobbyXpSmall" style="color:#aaffaa;font-weight:bold;font-size:10px">Lv.1</span>
             <span id="lobbyMoneySmall" style="color:#ffdd44;font-weight:bold">$0</span>
+            <button class="acc-btn" onclick="showShop()" style="font-size:9px;padding:2px 6px;background:rgba(255,221,68,0.2)">SHOP</button>
             <button class="acc-btn" onclick="logoutAccount()" style="font-size:9px;padding:2px 6px">✕</button>
           </div>
         </div>
@@ -479,14 +530,32 @@
       <div class="lobby-footer">ROBOTPLANET v1.0</div>
     </div>
     <div class="overlay" id="gameOverlay">
-      <h1 id="resultTitle">🏆 VICTORY!</h1>
+      <h1 id="resultTitle">VICTORY</h1>
       <p id="resultMsg"></p>
       <p class="sub" id="resultRounds"></p>
-      <button onclick="backToLobby()">⚔️ PLAY AGAIN</button>
+      <button onclick="backToLobby()">← Back to Lobby</button>
+    </div>
+
+    <div class="shop-overlay" id="shopOverlay">
+      <h2>⚙ SHOP</h2>
+      <div class="shop-money" id="shopMoney">$0</div>
+  <div class="shop-tabs">
+    <button class="shop-tab active" id="shopTabTanks" onclick="showShopTab('tanks')">Tanks</button>
+    <button class="shop-tab" id="shopTabUpgrades" onclick="showShopTab('upgrades')">Upgrades</button>
+    <button class="shop-tab" id="shopTabWeapons" onclick="showShopTab('weapons')">Weapons</button>
+    <button class="shop-tab" id="shopTabCollection" onclick="showShopTab('collection')">Collection</button>
+  </div>
+      <div class="shop-list" id="shopList"></div>
+      <button class="shop-close" onclick="hideShop()">Close</button>
     </div>
   </div>
 
   <div class="panel">
+    <div class="ability-bar" id="abilityBar" style="display:none">
+      <span class="ab-key">E</span>
+      <span id="abilityName">Shield Boost</span>
+      <span id="abilityStatus" class="ab-ready">READY</span>
+    </div>
     <div class="weapon-bar" id="weaponBar"></div>
     <div class="controls-hint" id="controlsHint">
       <kbd>W A S D</kbd> move &nbsp;|&nbsp; <kbd>1-5</kbd> weapon &nbsp;|&nbsp; <kbd>Click</kbd> / <kbd>Space</kbd> fire
@@ -495,40 +564,14 @@
 </div>
 
 <script>
-var errConsole = document.getElementById('errorConsole');
-var errorToggle = document.getElementById('errorToggle');
-errorToggle.addEventListener('click', function() {
-  errConsole.classList.toggle('show');
-  errorToggle.textContent = errConsole.classList.contains('show') ? 'VERB' : 'LOG';
-});
-function logToConsole(msg, type) {
-  if (!type) type = 'err';
-  errorToggle.style.display = 'block';
-  errConsole.classList.add('show');
-  errorToggle.textContent = 'VERB';
-  var div = document.createElement('div');
-  div.className = type;
-  div.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-  errConsole.appendChild(div);
-  errConsole.scrollTop = errConsole.scrollHeight;
-}
-window.onerror = function(msg, url, line) {
-  logToConsole(msg + ' (line ' + line + ')');
-  return true;
-};
-window.addEventListener('unhandledrejection', function(e) {
-  logToConsole('Promise: ' + e.reason);
-});
-
 var canvas = document.getElementById('arena');
 var ctx = canvas.getContext('2d');
-logToConsole('Game loaded. Canvas ' + canvas.width + 'x' + canvas.height, 'info');
 
 var W = 800, H = 500;
 var bgImage = new Image();
 bgImage.src = '2d landscape.webp';
 var bgLoaded = false;
-bgImage.onload = function() { bgLoaded = true; logToConsole('Background loaded (' + bgImage.width + 'x' + bgImage.height + ')', 'info'); };
+bgImage.onload = function() { bgLoaded = true; };
 
 var weapons = [
   { name: "Laser",    damage: 25, accuracy: 0.90, speed: 14, color: "#ff2222", size: 5,  desc: "High precision" },
@@ -536,6 +579,12 @@ var weapons = [
   { name: "Shield",   damage: 0,  accuracy: 1.0,  speed: 0,  color: "#44ddff", size: 0,  desc: "Block + heal", special: "defend" },
   { name: "EMP",      damage: 18, accuracy: 0.75, speed: 12, color: "#dd44ff", size: 6,  desc: "Stuns enemy", special: "stun" },
   { name: "Minigun",  damage: 8,  accuracy: 0.85, speed: 16, color: "#ffdd44", size: 3,  desc: "4 shots/turn", special: "multi" },
+  // Shop weapons
+  { name: "Piercer",  damage: 28, accuracy: 0.88, speed: 15, color: "#00ffcc", size: 5,  desc: "Penetrates enemies", special: "pierce" },
+  { name: "Vampire",  damage: 22, accuracy: 0.80, speed: 12, color: "#ff3366", size: 5,  desc: "Heals 30% of dmg", special: "vampire" },
+  { name: "Tesla Arc",damage: 20, accuracy: 0.82, speed: 13, color: "#66ddff", size: 6,  desc: "Chains to 2 more", special: "chain" },
+  { name: "Plasma",   damage: 12, accuracy: 0.78, speed: 14, color: "#ff88ff", size: 4,  desc: "5-shot burst", special: "burst" },
+  { name: "Mortar",   damage: 40, accuracy: 0.55, speed: 7,  color: "#ffaa44", size: 9,  desc: "Area splash", special: "splash" },
 ];
 
 var player, enemies = [];
@@ -746,7 +795,7 @@ function setGameMode(mode) {
 function initSupabase() {
   if (supabaseClient) return;
   if (!window.supabase) {
-    logToConsole('Supabase CDN not loaded!', 'err');
+    //logToConsole('Supabase CDN not loaded!', 'err');
     document.getElementById('mpStatus').style.display = 'block';
     document.getElementById('mpStatus').textContent = 'Error: CDN not loaded. Check internet.';
     return;
@@ -755,17 +804,17 @@ function initSupabase() {
     'https://eedbcqpygnwquhuvvoho.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlZGJjcXB5Z253cXVodXZ2b2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTY1MDQsImV4cCI6MjA5NjIzMjUwNH0.DlmmMqAhYHk4CUf5nWXZWn2im3Gx1vk5aEALZ2x1MmM'
   );
-  logToConsole('Supabase initialized', 'info');
+  //logToConsole('Supabase initialized', 'info');
 }
 
 function createRoom() {
   initSupabase();
-  if (!supabaseClient) { logToConsole('createRoom: supabaseClient is null', 'err'); return; }
+  if (!supabaseClient) { //logToConsole('createRoom: supabaseClient is null', 'err'); return; }
   playerId = 'p_' + Math.random().toString(36).substr(2, 8);
   isHost = true;
   roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
   gameModeType = document.getElementById('gameModeSelect').value;
-  logToConsole('Room created: ' + roomCode + ' mode=' + gameModeType, 'info');
+  //logToConsole('Room created: ' + roomCode + ' mode=' + gameModeType, 'info');
   document.getElementById('mpStatus').style.display = 'block';
   document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' — Waiting for players...';
   document.getElementById('leaveRoomBtn').style.display = 'inline-block';
@@ -775,8 +824,8 @@ function createRoom() {
   supabaseClient.from('rooms').insert({
     code: roomCode, host_id: playerId, status: 'waiting'
   }).then(function(resp) {
-    if (resp.error) { logToConsole('DB error: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Error creating room'; return; }
-    logToConsole('Room saved in DB', 'info');
+    if (resp.error) { //logToConsole('DB error: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Error creating room'; return; }
+    //logToConsole('Room saved in DB', 'info');
     subscribeToRoom();
   });
 }
@@ -785,7 +834,7 @@ function joinRoom() {
   var code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
   if (code.length < 3) { document.getElementById('mpStatus').textContent = 'Enter a valid room code'; document.getElementById('mpStatus').style.display = 'block'; return; }
   initSupabase();
-  if (!supabaseClient) { logToConsole('joinRoom: supabaseClient is null', 'err'); return; }
+  if (!supabaseClient) { //logToConsole('joinRoom: supabaseClient is null', 'err'); return; }
   playerId = 'p_' + Math.random().toString(36).substr(2, 8);
   isHost = false;
   roomCode = code;
@@ -794,19 +843,19 @@ function joinRoom() {
   document.getElementById('mpStatus').textContent = 'Joining room ' + code + '...';
   document.getElementById('leaveRoomBtn').style.display = 'inline-block';
   document.getElementById('startBtn').style.display = 'none';
-  logToConsole('Joining room: ' + code, 'info');
+  //logToConsole('Joining room: ' + code, 'info');
   subscribeToRoom();
   // Timeout: if no config broadcast within 5s, room likely doesn't exist
   setTimeout(function() {
     if (document.getElementById('mpStatus').textContent === 'Joining room ' + code + '...') {
       document.getElementById('mpStatus').textContent = 'Room not found';
-      logToConsole('Room not found (timeout)', 'err');
+      //logToConsole('Room not found (timeout)', 'err');
     }
   }, 5000);
 }
 
 function subscribeToRoom() {
-  logToConsole('Subscribing to room ' + roomCode, 'info');
+  //logToConsole('Subscribing to room ' + roomCode, 'info');
   mpChannel = supabaseClient.channel('room-' + roomCode);
 
   mpChannel.on('broadcast', { event: 'state' }, function(msg) {
@@ -888,13 +937,13 @@ function subscribeToRoom() {
   mpChannel.on('broadcast', { event: 'start' }, function(msg) {
     var data = msg.payload || msg;
     if (data.host_id === playerId) return;
-    logToConsole('Host started the game!', 'info');
+    //logToConsole('Host started the game!', 'info');
     // Sync mpPlayerList from current known players before starting
     startGameMP();
   });
 
   mpChannel.subscribe(function(status) {
-    logToConsole('Channel status: ' + status, 'info');
+    //logToConsole('Channel status: ' + status, 'info');
     if (status === 'SUBSCRIBED') {
       supabaseClient.from('player_states').upsert({
         room_code: roomCode, player_id: playerId,
@@ -902,7 +951,7 @@ function subscribeToRoom() {
         x: 400, y: 250, hp: 200, max_hp: 200,
         body_angle: 0, turret_angle: 0, shield: 0, stunned: false, alive: true, weapon: 0
       }, { onConflict: 'room_code,player_id' }).then(function(r) {
-        if (r.error) logToConsole('init state error: ' + JSON.stringify(r.error), 'err');
+        if (r.error) //logToConsole('init state error: ' + JSON.stringify(r.error), 'err');
       });
       var myName = document.getElementById('nameInput').value.trim() || "MechWarrior";
       if (mpPlayerList.filter(function(p){return p.id===playerId;}).length === 0) mpPlayerList.push({id: playerId, name: myName});
@@ -981,7 +1030,7 @@ function upsertStateDB() {
     shield: player.shield || 0, stunned: player.stunned || false,
     alive: player.alive(), weapon: selectedWeapon
   }, { onConflict: 'room_code,player_id' }).then(function(r) {
-    if (r.error) logToConsole('upsert DB error: ' + JSON.stringify(r.error), 'err');
+    if (r.error) //logToConsole('upsert DB error: ' + JSON.stringify(r.error), 'err');
   });
 }
 
@@ -1085,6 +1134,7 @@ class RobotArena {
 
   takeDamage(dmg) {
     var actual = dmg;
+    if (this.ironWall > 0) actual = Math.round(actual * 0.1);
     if (this.shield > 0) {
       var blocked = Math.min(this.shield, actual);
       this.shield -= blocked;
@@ -1321,9 +1371,9 @@ function fireProjectile(fromX, fromY, toX, toY, weapon, attacker) {
   var dy = toY - fromY;
   var dist = Math.sqrt(dx * dx + dy * dy);
   if (dist < 5) return;
-  var hits = weapon.special === "multi" ? 4 : 1;
+  var hits = weapon.special === "multi" ? 4 : weapon.special === "burst" ? 5 : 1;
   for (var i = 0; i < hits; i++) {
-    var spread = weapon.special === "multi" ? 0.12 : 0;
+    var spread = (weapon.special === "multi" || weapon.special === "burst") ? 0.12 : 0;
     var angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * spread;
     var speed = weapon.speed + Math.random() * 3;
     projectiles.push({
@@ -1338,12 +1388,12 @@ function fireProjectile(fromX, fromY, toX, toY, weapon, attacker) {
 }
 
 function startGameMP() {
-  if (!roomCode) { logToConsole('startGame MP: roomCode is null', 'err'); return; }
-  if (gameActive) { logToConsole('startGame MP: game already active', 'warn'); return; }
+  if (!roomCode) { //logToConsole('startGame MP: roomCode is null', 'err'); return; }
+  if (gameActive) { //logToConsole('startGame MP: game already active', 'warn'); return; }
   // Ensure local player is in mpPlayerList
   var myName = document.getElementById('nameInput').value.trim() || "MechWarrior";
   if (mpPlayerList.filter(function(p){return p.id===playerId;}).length === 0) mpPlayerList.push({id: playerId, name: myName});
-  logToConsole('startGame MP: isHost=' + isHost + ' room=' + roomCode + ' players=' + mpPlayerList.length, 'info');
+  //logToConsole('startGame MP: isHost=' + isHost + ' room=' + roomCode + ' players=' + mpPlayerList.length, 'info');
   gameModeType = gameModeType || 'ffa';
 
   // Assign teams
@@ -1371,9 +1421,12 @@ function startGameMP() {
     }
   }
   var sp = spawnPoints[myIdx % spawnPoints.length];
+  var ts = loggedInUser ? getTankStats() : { hp:200, speed:1.0, shield:0, dmg:1.0, color:'#88ccff' };
   player = new RobotArena(sorted[myIdx].name || 'Player', sp.x, sp.y, true);
-  player.maxHp = 200;
-  player.hp = 200;
+  player.maxHp = ts.hp;
+  player.hp = ts.hp;
+  player.speed = player.speed * ts.speed;
+  player.shield = ts.shield;
   player.team = myTeam;
   player.color = teamColors[myTeam % teamColors.length];
 
@@ -1433,9 +1486,14 @@ function startGame() {
   var input = document.getElementById('nameInput');
   var pName = input ? input.value.trim() || "MechWarrior" : "MechWarrior";
   if (gameMode === 'multi') { startGameMP(); return; }
+  var ts = loggedInUser ? getTankStats() : { hp:200, speed:1.0, shield:0, dmg:1.0, color:'#88ccff' };
   player = new RobotArena(pName, 150, 250, true);
-  player.maxHp = 200;
-  player.hp = 200;
+  player.maxHp = ts.hp;
+  player.hp = ts.hp;
+  player.speed = player.speed * ts.speed;
+  player.shield = ts.shield;
+  player.diffDmgMult = ts.dmg;
+  player.color = ts.color;
   enemies = [];
   var diffSpeed = [0.65, 1.0, 1.35];
   var diffHp = [80, 100, 120];
@@ -1495,7 +1553,9 @@ function buildEnemyHpBars() {
 
 function updateWeaponBar() {
   var bar = document.getElementById('weaponBar');
-  bar.innerHTML = weapons.map(function(w, i) {
+  var loadout = (loggedInUser && ownedWeapons.length > 5) ? lobbyLoadout : [0,1,2,3,4];
+  bar.innerHTML = loadout.map(function(idx, i) {
+    var w = weapons[idx] || weapons[0];
     return '<div class="w-btn ' + (i === selectedWeapon ? 'active' : '') + '" onclick="selectWeapon(' + i + ')">' +
       '<span class="key">' + (i + 1) + '</span>' +
       '<span class="wname" style="color:' + w.color + '">' + w.name + '</span></div>';
@@ -1509,6 +1569,7 @@ document.addEventListener('keydown', function(e) {
   keys[e.key.toLowerCase()] = true;
   var n = parseInt(e.key);
   if (n >= 1 && n <= 5) selectWeapon(n - 1);
+  if (e.key === 'e' || e.key === 'E') useAbility();
   if ((e.key === ' ' || e.key === 'Space') && gameActive && canShoot && player && player.alive()) {
     e.preventDefault();
     playerShoot();
@@ -1564,7 +1625,8 @@ function playerShootAuto() {
 // Fire button auto-fire in game loop
 
 function playerShoot() {
-  var w = weapons[selectedWeapon];
+  var loadout = (loggedInUser && ownedWeapons.length > 5) ? lobbyLoadout : [0,1,2,3,4];
+  var w = weapons[loadout[selectedWeapon]] || weapons[0];
   if (w.special === "defend") {
     player.shield = 35;
     player.heal(10);
@@ -1582,8 +1644,8 @@ function playerShoot() {
   fireProjectile(player.x, player.y, tx, ty, w, player);
   player.shootFlash = 8;
   canShoot = false;
-  shootCooldown = w.special === "multi" ? 28 : 15;
-  if (gameMode === 'multi') sendShot(player.x, player.y, angle, selectedWeapon);
+  shootCooldown = (w.special === "multi" || w.special === "burst") ? 28 : 15;
+  if (gameMode === 'multi') sendShot(player.x, player.y, angle, loadout[selectedWeapon]);
 }
 
 function getTargets(attacker) {
@@ -1616,33 +1678,80 @@ function processHits() {
       projectiles.splice(i, 1);
       continue;
     }
-    if (w.special !== "multi" && Math.random() > w.accuracy) {
+    if (w.special !== "multi" && w.special !== "burst" && Math.random() > w.accuracy) {
       createExplosion(p.x, p.y, "#888888", 8, false);
       addHitText(p.x, p.y, "MISS!", "#888888");
       projectiles.splice(i, 1);
       continue;
     }
     var dmg = w.damage * (p.attacker.diffDmgMult || 1);
+    if (p.attacker.heatSeeker) { dmg *= 3; p.attacker.heatSeeker = false; }
     if (w.special === "stun") {
       target.takeDamage(dmg);
       createExplosion(p.x, p.y, w.color, 30, true);
       target.stunned = true;
       addHitText(p.x, p.y, Math.round(dmg) + " \u26A1", w.color);
       if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
-    } else if (w.special === "multi") {
+    } else if (w.special === "multi" || w.special === "burst") {
       dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
       createExplosion(p.x, p.y, w.color, 15, false);
       addHitText(p.x, p.y, '' + dmg, w.color);
+    } else if (w.special === "vampire") {
+      dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
+      if (p.attacker.isPlayer && p.attacker.heal) p.attacker.heal(Math.round(dmg * 0.3));
+      createExplosion(p.x, p.y, w.color, 25, dmg > 30);
+      addHitText(p.x, p.y, '-' + dmg, "#ff3366");
+      if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
+    } else if (w.special === "chain") {
+      dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
+      createExplosion(p.x, p.y, w.color, 25, false);
+      addHitText(p.x, p.y, '-' + dmg, "#66ddff");
+      // chain to 2 nearby enemies
+      var chainTargets = getTargets(p.attacker);
+      var chainHits = 0;
+      for (var ci = 0; ci < chainTargets.length && chainHits < 2; ci++) {
+        var ct = chainTargets[ci];
+        if (ct === target || !ct.alive()) continue;
+        var cdx = ct.x - p.x, cdy = ct.y - p.y;
+        if (Math.sqrt(cdx*cdx + cdy*cdy) < 120) {
+          ct.takeDamage(Math.round(dmg * 0.5));
+          createExplosion(ct.x, ct.y, "#66ddff", 12, false);
+          addHitText(ct.x, ct.y, '-' + Math.round(dmg*0.5), "#66ddff");
+          chainHits++;
+        }
+      }
+      if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
+    } else if (w.special === "splash") {
+      dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
+      createExplosion(p.x, p.y, w.color, 35, true);
+      addHitText(p.x, p.y, '-' + dmg, w.color);
+      // splash damage to nearby enemies
+      var splashTargets = getTargets(p.attacker);
+      for (var si = 0; si < splashTargets.length; si++) {
+        var st = splashTargets[si];
+        if (st === target || !st.alive()) continue;
+        var sdx = st.x - p.x, sdy = st.y - p.y;
+        var sDist = Math.sqrt(sdx*sdx + sdy*sdy);
+        if (sDist < 80) {
+          var splashDmg = Math.round(dmg * (1 - sDist / 80) * 0.6);
+          st.takeDamage(splashDmg);
+          addHitText(st.x, st.y - 10, '-' + splashDmg, "#ffaa44");
+        }
+      }
+      if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
     } else {
       dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
       createExplosion(p.x, p.y, w.color, 25, dmg > 30);
       addHitText(p.x, p.y, '-' + dmg, dmg > 30 ? "#ffdd44" : w.color);
       if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
     }
-    projectiles.splice(i, 1);
+    var isPierce = w.special === "pierce";
+    if (!isPierce) projectiles.splice(i, 1);
     updateHP();
     if (!target.alive()) {
       killCount++;
+      xp += 15;
+      saveShopData();
       if (gameMode !== 'multi') {
         var reward = (difficulty + 1) * 1000;
         money += reward;
@@ -1675,11 +1784,14 @@ function checkGameOver() {
     if (!player.alive()) {
       gameActive = false; saveProfileStats();
       setTimeout(function() {
-        document.getElementById('resultTitle').textContent = "\uD83D\uDC80 DEFEATED";
-        document.getElementById('resultTitle').className = 'lose';
-        document.getElementById('resultMsg').textContent = player.name + ' has been destroyed...';
-        document.getElementById('resultRounds').textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
-        document.getElementById('gameOverlay').classList.add('show');
+        var t = document.getElementById('resultTitle');
+        var m = document.getElementById('resultMsg');
+        var r = document.getElementById('resultRounds');
+        var o = document.getElementById('gameOverlay');
+        if (t) { t.textContent = "\uD83D\uDC80 DEFEATED"; t.className = 'lose'; }
+        if (m) m.textContent = player.name + ' has been destroyed...';
+        if (r) r.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+        if (o) o.classList.add('show');
       }, 500);
       return true;
     }
@@ -1688,15 +1800,18 @@ function checkGameOver() {
       setTimeout(function() {
         var title = document.getElementById('resultTitle');
         var msg = document.getElementById('resultMsg');
-        title.textContent = "\uD83C\uDFC6 VICTORY!";
-        title.className = 'win';
-        if (gameModeType === 'teams' && player.team !== undefined) {
-          msg.textContent = 'Team ' + player.team + ' eliminates all opponents!';
-        } else {
-          msg.textContent = player.name + ' wins the online battle!';
+        var r = document.getElementById('resultRounds');
+        var o = document.getElementById('gameOverlay');
+        if (title) { title.textContent = "\uD83C\uDFC6 VICTORY!"; title.className = 'win'; }
+        if (msg) {
+          if (gameModeType === 'teams' && player.team !== undefined) {
+            msg.textContent = 'Team ' + player.team + ' eliminates all opponents!';
+          } else {
+            msg.textContent = player.name + ' wins the online battle!';
+          }
         }
-        document.getElementById('resultRounds').textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
-        document.getElementById('gameOverlay').classList.add('show');
+        if (r) r.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+        if (o) o.classList.add('show');
       }, 500);
       return true;
     }
@@ -1709,17 +1824,24 @@ function checkGameOver() {
       var title = document.getElementById('resultTitle');
       var msg = document.getElementById('resultMsg');
       var rounds = document.getElementById('resultRounds');
-      if (player.alive()) {
-        title.textContent = "\uD83C\uDFC6 VICTORY!";
-        title.className = 'win';
-        msg.textContent = player.name + ' defeats ' + killCount + ' opponent(s)!';
-      } else {
-        title.textContent = "\uD83D\uDC80 DEFEATED";
-        title.className = 'lose';
-        msg.textContent = player.name + ' has been destroyed...';
+      if (title) {
+        if (player.alive()) {
+          title.textContent = "\uD83C\uDFC6 VICTORY!";
+          title.className = 'win';
+        } else {
+          title.textContent = "\uD83D\uDC80 DEFEATED";
+          title.className = 'lose';
+        }
       }
-      rounds.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
-      overlay.classList.add('show');
+      if (msg) {
+        if (player.alive()) {
+          msg.textContent = player.name + ' defeats ' + killCount + ' opponent(s)!';
+        } else {
+          msg.textContent = player.name + ' has been destroyed...';
+        }
+      }
+      if (rounds) rounds.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+      if (overlay) overlay.classList.add('show');
     }, 500);
     return true;
   }
@@ -1735,8 +1857,10 @@ function updateHP() {
     pel.textContent = Math.round(player.hp);
     pel.className = 'hp-bar-inner ' + (pct > 50 ? 'hp-green' : pct > 25 ? 'hp-orange' : 'hp-red');
   }
-  document.getElementById('pShield').textContent = player.shield > 0 ? ('\uD83D\uDEE1 ' + player.shield) : '';
-  document.getElementById('pStun').textContent = player.stunned ? '\u26A1 STUN' : '';
+  var psh = document.getElementById('pShield');
+  if (psh) psh.textContent = player.shield > 0 ? ('\uD83D\uDEE1 ' + player.shield) : '';
+  var pst = document.getElementById('pStun');
+  if (pst) pst.textContent = player.stunned ? '\u26A1 STUN' : '';
 
   // Rebuild enemy HP bars if enemy count changed
   if (enemies.length !== lastEnemyBarCount) {
@@ -1809,11 +1933,11 @@ function updateAI() {
         ai.aiCooldown = 35 + Math.random() * 25;
       } else {
         var diffSpread = [1.5, 1.0, 0.7];
-        var spread = (w.special === "multi" ? 60 : 25) * diffSpread[difficulty];
+        var spread = (w.special === "multi" || w.special === "burst" ? 60 : 25) * diffSpread[difficulty];
         fireProjectile(ai.x, ai.y, player.x + (Math.random() - 0.5) * spread, player.y + (Math.random() - 0.5) * spread, w, ai);
         ai.shootFlash = 8;
         ai.aiCooldown = 20 + Math.random() * 30;
-        if (w.special === "multi") ai.aiCooldown += 20;
+        if (w.special === "multi" || w.special === "burst") ai.aiCooldown += 20;
       }
     }
   }
@@ -2108,11 +2232,14 @@ function gameLoop() {
               if (kothZone.score[firstTeam] >= 5) {
                 gameActive = false; saveProfileStats();
                 setTimeout(function() {
-                  document.getElementById('resultTitle').textContent = "\uD83C\uDFC6 TEAM " + firstTeam + " WINS!";
-                  document.getElementById('resultTitle').className = 'win';
-                  document.getElementById('resultMsg').textContent = 'Team ' + firstTeam + ' controls the hill!';
-                  document.getElementById('resultRounds').textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
-                  document.getElementById('gameOverlay').classList.add('show');
+                  var t = document.getElementById('resultTitle');
+                  var m = document.getElementById('resultMsg');
+                  var r = document.getElementById('resultRounds');
+                  var o = document.getElementById('gameOverlay');
+                  if (t) { t.textContent = "\uD83C\uDFC6 TEAM " + firstTeam + " WINS!"; t.className = 'win'; }
+                  if (m) m.textContent = 'Team ' + firstTeam + ' controls the hill!';
+                  if (r) r.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+                  if (o) o.classList.add('show');
                 }, 500);
               }
             }
@@ -2137,6 +2264,7 @@ function gameLoop() {
       if (enemies[ei2].stunned && Math.random() < 0.008) enemies[ei2].stunned = false;
     }
     roundCount++;
+    updateAbilityEffects();
   }
 
   drawParticles();
@@ -2220,16 +2348,17 @@ async function registerAccount() {
   initSupabase();
   if (!supabaseClient) return;
   var hash = btoa(pass);
-  var { data, error } = await supabaseClient.from('profiles').insert({ username: user, password: hash, money: 0, kills: 0 }).select().single();
+  var { data, error } = await supabaseClient.from('profiles').insert({ username: user, password: hash, money: 0, kills: 0, xp: 0 }).select().single();
   if (error) {
     if (error.code === '42P01' || error.message?.includes('does not exist')) {
-      showAccountStatus('Table does not exist. Run: CREATE TABLE profiles (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, money INTEGER DEFAULT 0, kills INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW()); in Supabase SQL Editor');
+      showAccountStatus('Table does not exist. Run: CREATE TABLE profiles (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, money INTEGER DEFAULT 0, kills INTEGER DEFAULT 0, xp INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW()); in Supabase SQL Editor');
       return;
     }
     if (error.code === '23505') { showAccountStatus('Username already taken'); return; }
     showAccountStatus('Error: ' + error.message); return;
   }
   loggedInUser = user; profileId = data.id;
+  rememberDevice(user, hash);
   onLogin();
 }
 
@@ -2242,7 +2371,8 @@ async function loginAccount() {
   var hash = btoa(pass);
   var { data, error } = await supabaseClient.from('profiles').select('*').eq('username', user).eq('password', hash).single();
   if (error || !data) { showAccountStatus('Invalid username or password'); return; }
-  loggedInUser = user; profileId = data.id; money = data.money || 0; killCount = data.kills || 0;
+  loggedInUser = user; profileId = data.id; money = data.money || 0; killCount = data.kills || 0; xp = data.xp || 0;
+  rememberDevice(user, hash);
   onLogin();
 }
 
@@ -2254,10 +2384,18 @@ function onLogin() {
   if (ab) ab.style.display = 'none';
   if (ai) ai.style.display = 'flex';
   if (lm) lm.textContent = '$' + money;
+  getShopData();
+  updateLobbyXp();
+  // ensure loadout slots are owned
+  for (var si = 0; si < 5; si++) {
+    if (ownedWeapons.indexOf(lobbyLoadout[si]) === -1) lobbyLoadout[si] = ownedWeapons[0] || 0;
+  }
+  updateLobbyWeapons();
 }
 
 function logoutAccount() {
   loggedInUser = null; profileId = null;
+  try { localStorage.removeItem('rp_remember'); } catch(e) {}
   var ai = document.getElementById('accountInfo');
   var ab = document.getElementById('accountBtns');
   var mel = document.getElementById('moneyDisplay');
@@ -2266,12 +2404,366 @@ function logoutAccount() {
   if (mel) mel.textContent = '$0';
 }
 
+function rememberDevice(user, hash) {
+  try { localStorage.setItem('rp_remember', JSON.stringify({user:user, hash:hash})); } catch(e) {}
+}
+
+async function tryAutoLogin() {
+  try {
+    var raw = localStorage.getItem('rp_remember');
+    if (!raw) return;
+    var d = JSON.parse(raw);
+    if (!d.user || !d.hash) return;
+    initSupabase();
+    if (!supabaseClient) return;
+    var { data, error } = await supabaseClient.from('profiles').select('*').eq('username', d.user).eq('password', d.hash).single();
+    if (error || !data) { try { localStorage.removeItem('rp_remember'); } catch(e) {} return; }
+    loggedInUser = d.user; profileId = data.id; money = data.money || 0; killCount = data.kills || 0; xp = data.xp || 0;
+    onLogin();
+  } catch(e) { try { localStorage.removeItem('rp_remember'); } catch(e2) {} }
+}
+
 async function saveProfileStats() {
   if (!profileId || !supabaseClient) return;
-  await supabaseClient.from('profiles').update({ money: money, kills: killCount }).eq('id', profileId);
+  await supabaseClient.from('profiles').update({ money: money, kills: killCount, xp: xp }).eq('id', profileId);
   var s = document.getElementById('lobbyMoneySmall');
   if (s) s.textContent = '$' + money;
+  updateLobbyXp();
 }
+
+function updateLobbyWeapons() {
+  var row = document.getElementById('lobbyWeaponRow');
+  if (!row) return;
+  if (!loggedInUser || ownedWeapons.length <= 5) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  var html = '<span style="color:#888;font-size:10px;margin-right:4px">Slots:</span>';
+  for (var i = 0; i < 5; i++) {
+    var idx = lobbyLoadout[i];
+    var w = weapons[idx];
+    if (!w) { html += '<button class="lw-btn" onclick="cycleLoadoutSlot(' + i + ')">EMPTY</button>'; continue; }
+    html += '<button class="lw-btn' + (i === 0?' active':'') + '" onclick="cycleLoadoutSlot(' + i + ')">' + w.name + '</button>';
+  }
+  row.innerHTML = html;
+}
+function cycleLoadoutSlot(slot) {
+  if (!loggedInUser) return;
+  var current = lobbyLoadout[slot];
+  var idx = ownedWeapons.indexOf(current);
+  var next = ownedWeapons[(idx + 1) % ownedWeapons.length];
+  lobbyLoadout[slot] = next;
+  saveShopData();
+  updateLobbyWeapons();
+}
+function updateLobbyXp() {
+  var el = document.getElementById('lobbyXpSmall');
+  if (el) el.textContent = 'Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
+}
+
+
+function updateAbilityBar() {
+  var bar = document.getElementById('abilityBar');
+  if (!bar || !gameActive || !player) { if(bar)bar.style.display='none'; return; }
+  var ab = tankAbilities[selectedTankId];
+  if (!ab || !loggedInUser) { bar.style.display='none'; return; }
+  bar.style.display='flex';
+  document.getElementById('abilityName').textContent = ab.name;
+  var st = document.getElementById('abilityStatus');
+  if (abilityCooldown > 0) { st.className='ab-cooldown'; st.textContent=Math.ceil(abilityCooldown/60)+'s'; }
+  else { st.className='ab-ready'; st.textContent='READY'; }
+}
+var abilityCooldown = 0;
+
+function useAbility() {
+  if (!gameActive || !player || !player.alive() || abilityCooldown > 0) return;
+  var ab = tankAbilities[selectedTankId];
+  if (!ab || !loggedInUser) return;
+  ab.activate(player);
+  abilityCooldown = ab.cooldown;
+  if (ab.duration) {
+    player.abilityTimer = ab.duration;
+    if (selectedTankId === 'light') player._savedSpeed = player.speed;
+  }
+  updateAbilityBar();
+}
+
+function updateAbilityEffects() {
+  if (!player || !gameActive) return;
+  // Iron Wall
+  if (player.ironWall > 0) { player.ironWall--; }
+  // Speed Burst
+  if (player.speedBurst > 0) { player.speedBurst--; if (player.speedBurst <= 0 && player._savedSpeed) { player.speed = player._savedSpeed; } }
+  // Heat Seeker - auto reset after shot
+  if (abilityCooldown > 0) abilityCooldown--;
+  updateAbilityBar();
+}
+
+// ---- TANK SHOP ----
+var tankTypes = [
+  { id:'default', name:'Mk I Standard', cost:0, hp:200, speed:1.0, shield:0, dmgMult:1.0, color:'#88ccff', desc:'Balanced all-around tank', levelReq:1 },
+  { id:'heavy', name:'Mk II Bunker', cost:5000, hp:350, speed:0.75, shield:0, dmgMult:1.0, color:'#ff8844', desc:'High HP, slow speed', levelReq:3 },
+  { id:'light', name:'Mk III Raptor', cost:5000, hp:140, speed:1.4, shield:0, dmgMult:1.0, color:'#44ff88', desc:'Fast but fragile', levelReq:3 },
+  { id:'shield', name:'Mk IV Aegis', cost:8000, hp:200, speed:0.9, shield:40, dmgMult:1.0, color:'#4488ff', desc:'Starts with shield energy', levelReq:5 },
+  { id:'sniper', name:'Mk V Longshot', cost:10000, hp:160, speed:0.95, shield:0, dmgMult:1.2, color:'#ff44ff', desc:'+20% damage', levelReq:7 },
+];
+var upgradeDefs = [
+  { id:'hp', name:'Armor', levels:3, cost:[500,1000,2000], bonus:[50,100,150], desc:'+{val} HP' },
+  { id:'speed', name:'Treads', levels:3, cost:[500,1000,2000], bonus:[0.15,0.25,0.4], desc:'+{val}% speed' },
+  { id:'shield', name:'Generator', levels:2, cost:[1000,2500], bonus:[30,60], desc:'+{val} shield' },
+  { id:'damage', name:'Cannon', levels:2, cost:[1500,3000], bonus:[0.15,0.3], desc:'+{val}% damage' },
+];
+var weaponShop = [
+  { idx:5, name:'Piercer', cost:3000, desc:'Penetrates through enemies' },
+  { idx:6, name:'Vampire', cost:4000, desc:'Heals 30% of damage dealt' },
+  { idx:7, name:'Tesla Arc', cost:5000, desc:'Chains to 2 nearby enemies' },
+  { idx:8, name:'Plasma', cost:6000, desc:'5-shot burst' },
+  { idx:9, name:'Mortar', cost:8000, desc:'Area splash damage' },
+];
+var tankAbilities = {
+  default: { name:'Shield Boost', desc:'+50 shield instantly', cooldown:300, activate:function(p){p.shield=Math.min(p.shield+50,100);} },
+  heavy:   { name:'Iron Wall', desc:'90% dmg reduction 1s', cooldown:600, duration:60, activate:function(p){p.ironWall=60;} },
+  light:   { name:'Speed Burst', desc:'2x speed 1.5s', cooldown:400, duration:90, activate:function(p){p.speedBurst=90;p.speed*=2;} },
+  shield:  { name:'EMP Pulse', desc:'Stun nearby enemies', cooldown:500, activate:function(p){for(var ei=0;ei<enemies.length;ei++){var e=enemies[ei];if(e.alive()&&Math.hypot(e.x-p.x,e.y-p.y)<150)e.stunned=true;}} },
+  sniper:  { name:'Heat Seeker', desc:'Next shot 3x damage', cooldown:450, activate:function(p){p.heatSeeker=true;} },
+};
+var ownedTanks = ['default'];
+var selectedTankId = 'default';
+var upgradeLevels = {};
+var ownedWeapons = [0,1,2,3,4];
+var xp = 0;
+function getLevel(xp) { return Math.floor(xp / 100) + 1; }
+var lobbyLoadout = [0,1,2,3,4];
+var shopTab = 'tanks';
+
+function getShopData() {
+  try {
+    var raw = localStorage.getItem('rp_shop_' + loggedInUser);
+    if (raw) { var d = JSON.parse(raw); ownedTanks = d.ownedTanks || ['default']; selectedTankId = d.selectedTank || 'default'; upgradeLevels = d.upgradeLevels || {}; ownedWeapons = d.ownedWeapons || [0,1,2,3,4]; lobbyLoadout = d.lobbyLoadout || [0,1,2,3,4]; xp = d.xp || 0; }
+  } catch(e) {}
+}
+function saveShopData() {
+  try { localStorage.setItem('rp_shop_' + loggedInUser, JSON.stringify({ownedTanks:ownedTanks,selectedTank:selectedTankId,upgradeLevels:upgradeLevels,ownedWeapons:ownedWeapons,lobbyLoadout:lobbyLoadout,xp:xp})); } catch(e) {}
+}
+
+function showShop() {
+  if (!loggedInUser) return;
+  getShopData();
+  document.getElementById('shopOverlay').classList.add('show');
+  document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
+  shopTab = 'tanks';
+  document.getElementById('shopTabTanks').className = 'shop-tab active';
+  document.getElementById('shopTabUpgrades').className = 'shop-tab';
+  document.getElementById('shopTabWeapons').className = 'shop-tab';
+  document.getElementById('shopTabCollection').className = 'shop-tab';
+  renderShopTanks();
+}
+function hideShop() { document.getElementById('shopOverlay').classList.remove('show'); }
+
+function showShopTab(tab) {
+  shopTab = tab;
+  document.getElementById('shopTabTanks').className = 'shop-tab' + (tab==='tanks'?' active':'');
+  document.getElementById('shopTabUpgrades').className = 'shop-tab' + (tab==='upgrades'?' active':'');
+  document.getElementById('shopTabWeapons').className = 'shop-tab' + (tab==='weapons'?' active':'');
+  document.getElementById('shopTabCollection').className = 'shop-tab' + (tab==='collection'?' active':'');
+  if (tab === 'tanks') renderShopTanks();
+  else if (tab === 'upgrades') renderShopUpgrades();
+  else if (tab === 'weapons') renderShopWeapons();
+  else renderShopCollection();
+}
+
+function renderShopTanks() {
+  var el = document.getElementById('shopList');
+  var html = '';
+  for (var i = 0; i < tankTypes.length; i++) {
+    var t = tankTypes[i];
+    var owned = ownedTanks.indexOf(t.id) !== -1;
+    var equipped = selectedTankId === t.id;
+    var canBuy = !owned && money >= t.cost;
+    html += '<div class="shop-item' + (owned?' owned':'') + (equipped?' equipped':'') + '">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div class="si-name" style="color:' + t.color + '">' + t.name + '</div>';
+    html += '<div class="si-desc">' + t.desc + '</div>';
+    html += '<div class="si-stats">HP ' + t.hp + ' | SPD ' + Math.round(t.speed*100) + '%' + (t.shield?' | SHIELD '+t.shield:'') + (t.dmgMult>1?' | DMG +'+Math.round((t.dmgMult-1)*100)+'%':'') + ' | Lv.' + t.levelReq + '</div>';
+    html += '</div>';
+    var lvl = getLevel(xp);
+    if (equipped) html += '<button class="shop-btn owned-btn" disabled>EQUIPPED</button>';
+    else if (owned) html += '<button class="shop-btn equip" onclick="selectTank(\'' + t.id + '\')">Equip</button>';
+    else if (lvl < t.levelReq) html += '<button class="shop-btn" disabled>Lv.' + t.levelReq + ' req</button>';
+    else html += '<button class="shop-btn" onclick="buyTank(\'' + t.id + '\')"' + (canBuy?'':' disabled') + '>$' + t.cost + '</button>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function renderShopUpgrades() {
+  var el = document.getElementById('shopList');
+  var tt = null;
+  for (var i = 0; i < tankTypes.length; i++) { if (tankTypes[i].id === selectedTankId) { tt = tankTypes[i]; break; } }
+  var html = '<div style="color:#888;font-size:10px;text-align:center;margin-bottom:6px">Upgrades for <span style="color:' + (tt?tt.color:'#888') + '">' + (tt?tt.name:'?') + '</span></div>';
+  for (var i = 0; i < upgradeDefs.length; i++) {
+    var u = upgradeDefs[i];
+    var key = selectedTankId + '_' + u.id;
+    var level = upgradeLevels[key] || 0;
+    var maxed = level >= u.levels;
+    var canBuy = !maxed && money >= u.cost[level];
+    var val = u.bonus[level];
+    var desc = u.desc.replace('{val}', u.id==='speed'||u.id==='damage'?Math.round(val*100):val);
+    html += '<div class="shop-item">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div class="si-name">' + u.name + ' <span style="color:#666;font-size:10px">Lv.' + (level+1) + '/' + u.levels + '</span></div>';
+    html += '<div class="si-desc">' + desc + '</div>';
+    html += '</div>';
+    if (maxed) html += '<button class="shop-btn owned-btn" disabled>MAX</button>';
+    else html += '<button class="shop-btn" onclick="buyUpgrade(\'' + u.id + '\')"' + (canBuy?'':' disabled') + '>$' + u.cost[level] + '</button>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function buyTank(id) {
+  var t = null;
+  for (var i = 0; i < tankTypes.length; i++) { if (tankTypes[i].id === id) { t = tankTypes[i]; break; } }
+  if (!t || ownedTanks.indexOf(id) !== -1) return;
+  if (getLevel(xp) < t.levelReq) return;
+  if (money < t.cost) return;
+  money -= t.cost;
+  ownedTanks.push(id);
+  selectedTankId = id;
+  upgradeLevels = {};
+  saveShopData();
+  document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
+  renderShopTanks();
+}
+
+function selectTank(id) {
+  if (ownedTanks.indexOf(id) === -1) return;
+  selectedTankId = id;
+  saveShopData();
+  renderShopTanks();
+}
+
+function buyUpgrade(id) {
+  var u = null;
+  for (var i = 0; i < upgradeDefs.length; i++) { if (upgradeDefs[i].id === id) { u = upgradeDefs[i]; break; } }
+  if (!u) return;
+  var key = selectedTankId + '_' + id;
+  var level = upgradeLevels[key] || 0;
+  if (level >= u.levels) return;
+  if (money < u.cost[level]) return;
+  money -= u.cost[level];
+  upgradeLevels[key] = level + 1;
+  saveShopData();
+  document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
+  renderShopUpgrades();
+}
+
+function renderShopWeapons() {
+  var el = document.getElementById('shopList');
+  var html = '';
+  for (var i = 0; i < weaponShop.length; i++) {
+    var w = weaponShop[i];
+    var owned = ownedWeapons.indexOf(w.idx) !== -1;
+    var canBuy = !owned && money >= w.cost;
+    html += '<div class="shop-item' + (owned?' owned':'') + '">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div class="si-name" style="color:' + weapons[w.idx].color + '">' + w.name + '</div>';
+    html += '<div class="si-desc">' + w.desc + '</div>';
+    html += '<div class="si-stats">DAM ' + weapons[w.idx].damage + ' | ACC ' + Math.round(weapons[w.idx].accuracy*100) + '%</div>';
+    html += '</div>';
+    if (owned) html += '<button class="shop-btn owned-btn" disabled>OWNED</button>';
+    else html += '<button class="shop-btn" onclick="buyWeapon(' + w.idx + ')"' + (canBuy?'':' disabled') + '>$' + w.cost + '</button>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+function buyWeapon(idx) {
+  if (ownedWeapons.indexOf(idx) !== -1) return;
+  var w = null;
+  for (var i = 0; i < weaponShop.length; i++) { if (weaponShop[i].idx === idx) { w = weaponShop[i]; break; } }
+  if (!w) return;
+  if (money < w.cost) return;
+  money -= w.cost;
+  ownedWeapons.push(idx);
+  // assign to first loadout slot that has a basic weapon (0-4) if it's a shop weapon
+  if (idx >= 5) {
+    for (var si = 0; si < 5; si++) {
+      if (lobbyLoadout[si] < 5) { lobbyLoadout[si] = idx; break; }
+    }
+  }
+  saveShopData();
+  document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
+  renderShopWeapons();
+  updateLobbyWeapons();
+}
+
+function renderShopCollection() {
+  var el = document.getElementById('shopList');
+  var html = '<div style="color:#888;font-size:10px;text-align:center;margin-bottom:8px">YOUR COLLECTION</div>';
+
+  html += '<div style="font-size:11px;color:#ddd;margin-bottom:4px">TANKS</div>';
+  var hasTank = false;
+  for (var i = 0; i < tankTypes.length; i++) {
+    var t = tankTypes[i];
+    if (ownedTanks.indexOf(t.id) !== -1) {
+      hasTank = true;
+      var eq = selectedTankId === t.id ? ' <span style="color:#44ff88;font-size:9px">[EQUIPPED]</span>' : '';
+      html += '<div style="color:' + t.color + ';font-size:11px;padding:2px 4px">' + t.name + eq + '</div>';
+    }
+  }
+  if (!hasTank) html += '<div style="color:#666;font-size:10px;padding:2px 4px">None owned</div>';
+
+  html += '<div style="font-size:11px;color:#ddd;margin-top:8px;margin-bottom:4px">WEAPONS <span style="color:#666;font-weight:normal;font-size:9px">(loadout: ' + lobbyLoadout.map(function(idx){return weapons[idx]?weapons[idx].name:'?';}).join(' | ') + ')</span></div>';
+  var hasWep = false;
+  for (var i = 0; i < ownedWeapons.length; i++) {
+    var idx = ownedWeapons[i];
+    var w = weapons[idx];
+    if (!w) continue;
+    hasWep = true;
+    var inLoadout = lobbyLoadout.indexOf(idx) !== -1;
+    var tag = inLoadout ? ' <span style="color:#44ff88;font-size:9px">[IN SLOT ' + (lobbyLoadout.indexOf(idx) + 1) + ']</span>' : '';
+    html += '<div style="color:' + w.color + ';font-size:11px;padding:2px 4px">' + w.name + tag + '</div>';
+  }
+  if (!hasWep) html += '<div style="color:#666;font-size:10px;padding:2px 4px">None owned</div>';
+
+  html += '<div style="font-size:11px;color:#ddd;margin-top:8px;margin-bottom:4px">UPGRADES</div>';
+  var hasUpg = false;
+  for (var key in upgradeLevels) {
+    hasUpg = true;
+    var parts = key.split('_');
+    var tid = parts[0], uid = parts[1];
+    var tt = null, uu = null;
+    for (var j = 0; j < tankTypes.length; j++) { if (tankTypes[j].id === tid) { tt = tankTypes[j]; break; } }
+    for (var j = 0; j < upgradeDefs.length; j++) { if (upgradeDefs[j].id === uid) { uu = upgradeDefs[j]; break; } }
+    if (tt && uu) {
+      html += '<div style="color:#aaa;font-size:10px;padding:2px 4px">' + tt.name + ' — ' + uu.name + ' Lv.' + upgradeLevels[key] + '</div>';
+    }
+  }
+  if (!hasUpg) html += '<div style="color:#666;font-size:10px;padding:2px 4px">No upgrades purchased</div>';
+
+  el.innerHTML = html;
+}
+
+function getTankStats() {
+  var t = null;
+  for (var i = 0; i < tankTypes.length; i++) { if (tankTypes[i].id === selectedTankId) { t = tankTypes[i]; break; } }
+  if (!t) t = tankTypes[0];
+  var hp = t.hp, speed = t.speed, shield = t.shield, dmg = t.dmgMult;
+  for (var id in upgradeLevels) {
+    if (id.indexOf(selectedTankId + '_') !== 0) continue;
+    var uid = id.substring(selectedTankId.length + 1);
+    var u = null;
+    for (var j = 0; j < upgradeDefs.length; j++) { if (upgradeDefs[j].id === uid) { u = upgradeDefs[j]; break; } }
+    if (!u) continue;
+    var lv = upgradeLevels[id];
+    for (var k = 0; k < lv; k++) {
+      if (uid === 'hp') hp += u.bonus[k];
+      else if (uid === 'speed') speed += u.bonus[k];
+      else if (uid === 'shield') shield += u.bonus[k];
+      else if (uid === 'damage') dmg += u.bonus[k];
+    }
+  }
+  return { hp: hp, speed: speed, shield: shield, dmg: dmg, color: t.color };
+}
+setTimeout(tryAutoLogin, 500);
 </script>
 </body>
 </html>
