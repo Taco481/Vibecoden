@@ -67,6 +67,34 @@
   }
   .w-btn .key { font-size: 9px; color: #8888cc; display: block; }
   .w-btn .wname { font-weight: bold; font-size: 12px; }
+
+  .ability-bar {
+    display: flex; align-items: center; gap: 6px; padding: 2px 8px;
+    font: 11px monospace; color: #aaa;
+  }
+  .ability-bar .ab-key {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 3px; padding: 0 5px; font-weight: bold; font-size: 10px; color: #ffdd44;
+  }
+  .ability-bar .ab-ready { color: #44ff88; }
+  .ability-bar .ab-cooldown { color: #ff6644; }
+
+  .lobby-weapon-row {
+    display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; width: 100%;
+    margin-top: 6px;
+  }
+  .lobby-weapon-row .lw-btn {
+    background: rgba(20,20,60,0.7); border: 1px solid #3a3a8a;
+    border-radius: 6px; padding: 3px 10px; color: #aaa; font: 10px monospace; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  .lobby-weapon-row .lw-btn:hover { border-color: #6a6aff; background: rgba(40,40,100,0.8); }
+  .lobby-weapon-row .lw-btn.active {
+    border-color: #ffdd44; background: rgba(80,70,30,0.8);
+    box-shadow: 0 0 10px rgba(255,221,68,0.3); color: #fff;
+  }
+  .lobby-weapon-row .lw-btn.owned { color: #ddd; }
+  .lobby-weapon-row .lw-btn.locked { opacity: 0.4; cursor: default; }
   .w-btn.active .wname { color: #ffdd44; text-shadow: 0 0 10px rgba(255,221,68,0.5); }
 
   .hp-section { width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 2px; }
@@ -491,6 +519,8 @@
 
         <button class="lobby-btn" onclick="startGame()" id="startBtn">⚔ FIGHT</button>
 
+        <div id="lobbyWeaponRow" class="lobby-weapon-row" style="display:none"></div>
+
         <div id="accountLogin" style="display:none;width:100%;flex-direction:column;align-items:center;gap:6px;margin-top:8px;border-top:1px solid rgba(74,74,255,0.2);padding-top:8px">
           <div style="font-size:11px;color:#7777cc">Account</div>
           <div class="mp-join-row" style="max-width:200px">
@@ -532,16 +562,22 @@
     <div class="shop-overlay" id="shopOverlay">
       <h2>⚙ TANK SHOP</h2>
       <div class="shop-money" id="shopMoney">$0</div>
-      <div class="shop-tabs">
-        <button class="shop-tab active" id="shopTabTanks" onclick="showShopTab('tanks')">Tanks</button>
-        <button class="shop-tab" id="shopTabUpgrades" onclick="showShopTab('upgrades')">Upgrades</button>
-      </div>
+  <div class="shop-tabs">
+    <button class="shop-tab active" id="shopTabTanks" onclick="showShopTab('tanks')">Tanks</button>
+    <button class="shop-tab" id="shopTabUpgrades" onclick="showShopTab('upgrades')">Upgrades</button>
+    <button class="shop-tab" id="shopTabWeapons" onclick="showShopTab('weapons')">Weapons</button>
+  </div>
       <div class="shop-list" id="shopList"></div>
       <button class="shop-close" onclick="hideShop()">Close</button>
     </div>
   </div>
 
   <div class="panel">
+    <div class="ability-bar" id="abilityBar" style="display:none">
+      <span class="ab-key">E</span>
+      <span id="abilityName">Shield Boost</span>
+      <span id="abilityStatus" class="ab-ready">READY</span>
+    </div>
     <div class="weapon-bar" id="weaponBar"></div>
     <div class="controls-hint" id="controlsHint">
       <kbd>W A S D</kbd> move &nbsp;|&nbsp; <kbd>1-5</kbd> weapon &nbsp;|&nbsp; <kbd>Click</kbd> / <kbd>Space</kbd> fire
@@ -1140,6 +1176,7 @@ class RobotArena {
 
   takeDamage(dmg) {
     var actual = dmg;
+    if (this.ironWall > 0) actual = Math.round(actual * 0.1);
     if (this.shield > 0) {
       var blocked = Math.min(this.shield, actual);
       this.shield -= blocked;
@@ -1457,7 +1494,8 @@ function startGameMP() {
   var pName = input ? input.value.trim() || "MechWarrior" : "MechWarrior";
 
   projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
-  selectedWeapon = 0; gameActive = true; canShoot = true;
+  if (hasWeaponRestriction()) selectedWeapon = lobbySelectedWeapon;
+  else selectedWeapon = 0; gameActive = true; canShoot = true;
   shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0; money = 0;
   screenShake.intensity = 0;
 
@@ -1519,7 +1557,8 @@ function startGame() {
     enemies.push(ai);
   }
   projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
-  selectedWeapon = 0; gameActive = true; canShoot = true;
+  if (hasWeaponRestriction()) selectedWeapon = lobbySelectedWeapon;
+  else selectedWeapon = 0; gameActive = true; canShoot = true;
   shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0; money = 0;
   screenShake.intensity = 0;
   document.getElementById('startScreen').style.display = 'none';
@@ -1558,6 +1597,14 @@ function buildEnemyHpBars() {
 
 function updateWeaponBar() {
   var bar = document.getElementById('weaponBar');
+  var restricted = hasWeaponRestriction() && gameActive;
+  if (restricted) {
+    var w = weapons[lobbySelectedWeapon];
+    bar.innerHTML = '<div class="w-btn active" style="cursor:default">' +
+      '<span class="key">⚔</span>' +
+      '<span class="wname" style="color:' + w.color + '">' + w.name + '</span></div>';
+    return;
+  }
   bar.innerHTML = weapons.map(function(w, i) {
     return '<div class="w-btn ' + (i === selectedWeapon ? 'active' : '') + '" onclick="selectWeapon(' + i + ')">' +
       '<span class="key">' + (i + 1) + '</span>' +
@@ -1571,7 +1618,8 @@ document.addEventListener('keydown', function(e) {
   if (!e || !e.key) return;
   keys[e.key.toLowerCase()] = true;
   var n = parseInt(e.key);
-  if (n >= 1 && n <= 5) selectWeapon(n - 1);
+  if (!(hasWeaponRestriction() && gameActive) && n >= 1 && n <= 5) selectWeapon(n - 1);
+  if (e.key === 'e' || e.key === 'E') useAbility();
   if ((e.key === ' ' || e.key === 'Space') && gameActive && canShoot && player && player.alive()) {
     e.preventDefault();
     playerShoot();
@@ -1686,6 +1734,7 @@ function processHits() {
       continue;
     }
     var dmg = w.damage * (p.attacker.diffDmgMult || 1);
+    if (p.attacker.heatSeeker) { dmg *= 3; p.attacker.heatSeeker = false; }
     if (w.special === "stun") {
       target.takeDamage(dmg);
       createExplosion(p.x, p.y, w.color, 30, true);
@@ -1798,8 +1847,10 @@ function updateHP() {
     pel.textContent = Math.round(player.hp);
     pel.className = 'hp-bar-inner ' + (pct > 50 ? 'hp-green' : pct > 25 ? 'hp-orange' : 'hp-red');
   }
-  document.getElementById('pShield').textContent = player.shield > 0 ? ('\uD83D\uDEE1 ' + player.shield) : '';
-  document.getElementById('pStun').textContent = player.stunned ? '\u26A1 STUN' : '';
+  var psh = document.getElementById('pShield');
+  if (psh) psh.textContent = player.shield > 0 ? ('\uD83D\uDEE1 ' + player.shield) : '';
+  var pst = document.getElementById('pStun');
+  if (pst) pst.textContent = player.stunned ? '\u26A1 STUN' : '';
 
   // Rebuild enemy HP bars if enemy count changed
   if (enemies.length !== lastEnemyBarCount) {
@@ -2200,6 +2251,7 @@ function gameLoop() {
       if (enemies[ei2].stunned && Math.random() < 0.008) enemies[ei2].stunned = false;
     }
     roundCount++;
+    updateAbilityEffects();
   }
 
   drawParticles();
@@ -2318,6 +2370,8 @@ function onLogin() {
   if (ai) ai.style.display = 'flex';
   if (lm) lm.textContent = '$' + money;
   getShopData();
+  if (ownedWeapons.indexOf(lobbySelectedWeapon) === -1) lobbySelectedWeapon = ownedWeapons[0] || 0;
+  updateLobbyWeapons();
 }
 
 function logoutAccount() {
@@ -2337,6 +2391,68 @@ async function saveProfileStats() {
   if (s) s.textContent = '$' + money;
 }
 
+function updateLobbyWeapons() {
+  var row = document.getElementById('lobbyWeaponRow');
+  if (!row) return;
+  if (!loggedInUser || ownedWeapons.length <= 1) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  var html = '<span style="color:#888;font-size:10px;margin-right:4px">Weapon:</span>';
+  for (var i = 0; i < ownedWeapons.length; i++) {
+    var idx = ownedWeapons[i];
+    var w = weapons[idx];
+    var active = lobbySelectedWeapon === idx;
+    if (!w) continue;
+    html += '<button class="lw-btn' + (active?' active':'') + '" onclick="selectLobbyWeapon(' + idx + ')">' + w.name + '</button>';
+  }
+  row.innerHTML = html;
+}
+function selectLobbyWeapon(idx) {
+  if (ownedWeapons.indexOf(idx) === -1) return;
+  lobbySelectedWeapon = idx;
+  saveShopData();
+  updateLobbyWeapons();
+}
+function hasWeaponRestriction() {
+  return loggedInUser && ownedWeapons.length > 1;
+}
+
+function updateAbilityBar() {
+  var bar = document.getElementById('abilityBar');
+  if (!bar || !gameActive || !player) { if(bar)bar.style.display='none'; return; }
+  var ab = tankAbilities[selectedTankId];
+  if (!ab || !loggedInUser) { bar.style.display='none'; return; }
+  bar.style.display='flex';
+  document.getElementById('abilityName').textContent = ab.name;
+  var st = document.getElementById('abilityStatus');
+  if (abilityCooldown > 0) { st.className='ab-cooldown'; st.textContent=Math.ceil(abilityCooldown/60)+'s'; }
+  else { st.className='ab-ready'; st.textContent='READY'; }
+}
+var abilityCooldown = 0;
+
+function useAbility() {
+  if (!gameActive || !player || !player.alive() || abilityCooldown > 0) return;
+  var ab = tankAbilities[selectedTankId];
+  if (!ab || !loggedInUser) return;
+  ab.activate(player);
+  abilityCooldown = ab.cooldown;
+  if (ab.duration) {
+    player.abilityTimer = ab.duration;
+    if (selectedTankId === 'light') player._savedSpeed = player.speed;
+  }
+  updateAbilityBar();
+}
+
+function updateAbilityEffects() {
+  if (!player || !gameActive) return;
+  // Iron Wall
+  if (player.ironWall > 0) { player.ironWall--; }
+  // Speed Burst
+  if (player.speedBurst > 0) { player.speedBurst--; if (player.speedBurst <= 0 && player._savedSpeed) { player.speed = player._savedSpeed; } }
+  // Heat Seeker - auto reset after shot
+  if (abilityCooldown > 0) abilityCooldown--;
+  updateAbilityBar();
+}
+
 // ---- TANK SHOP ----
 var tankTypes = [
   { id:'default', name:'Mk I Standard', cost:0, hp:200, speed:1.0, shield:0, dmgMult:1.0, color:'#88ccff', desc:'Balanced all-around tank' },
@@ -2351,19 +2467,35 @@ var upgradeDefs = [
   { id:'shield', name:'Generator', levels:2, cost:[1000,2500], bonus:[30,60], desc:'+{val} shield' },
   { id:'damage', name:'Cannon', levels:2, cost:[1500,3000], bonus:[0.15,0.3], desc:'+{val}% damage' },
 ];
+var weaponShop = [
+  { idx:0, name:'Laser', cost:0, desc:'High precision' },
+  { idx:1, name:'Rocket', cost:1000, desc:'Devastating blast' },
+  { idx:2, name:'Shield', cost:1500, desc:'Block + heal' },
+  { idx:3, name:'EMP', cost:2000, desc:'Stuns enemy' },
+  { idx:4, name:'Minigun', cost:2500, desc:'Rapid fire' },
+];
+var tankAbilities = {
+  default: { name:'Shield Boost', desc:'+50 shield instantly', cooldown:300, activate:function(p){p.shield=Math.min(p.shield+50,100);} },
+  heavy:   { name:'Iron Wall', desc:'90% dmg reduction 1s', cooldown:600, duration:60, activate:function(p){p.ironWall=60;} },
+  light:   { name:'Speed Burst', desc:'2x speed 1.5s', cooldown:400, duration:90, activate:function(p){p.speedBurst=90;p.speed*=2;} },
+  shield:  { name:'EMP Pulse', desc:'Stun nearby enemies', cooldown:500, activate:function(p){for(var ei=0;ei<enemies.length;ei++){var e=enemies[ei];if(e.alive()&&Math.hypot(e.x-p.x,e.y-p.y)<150)e.stunned=true;}} },
+  sniper:  { name:'Heat Seeker', desc:'Next shot 3x damage', cooldown:450, activate:function(p){p.heatSeeker=true;} },
+};
 var ownedTanks = ['default'];
 var selectedTankId = 'default';
 var upgradeLevels = {};
+var ownedWeapons = [0]; // weapon indices owned
+var lobbySelectedWeapon = 0;
 var shopTab = 'tanks';
 
 function getShopData() {
   try {
     var raw = localStorage.getItem('rp_shop_' + loggedInUser);
-    if (raw) { var d = JSON.parse(raw); ownedTanks = d.ownedTanks || ['default']; selectedTankId = d.selectedTank || 'default'; upgradeLevels = d.upgradeLevels || {}; }
+    if (raw) { var d = JSON.parse(raw); ownedTanks = d.ownedTanks || ['default']; selectedTankId = d.selectedTank || 'default'; upgradeLevels = d.upgradeLevels || {}; ownedWeapons = d.ownedWeapons || [0]; lobbySelectedWeapon = d.lobbySelectedWeapon || 0; }
   } catch(e) {}
 }
 function saveShopData() {
-  try { localStorage.setItem('rp_shop_' + loggedInUser, JSON.stringify({ownedTanks:ownedTanks,selectedTank:selectedTankId,upgradeLevels:upgradeLevels})); } catch(e) {}
+  try { localStorage.setItem('rp_shop_' + loggedInUser, JSON.stringify({ownedTanks:ownedTanks,selectedTank:selectedTankId,upgradeLevels:upgradeLevels,ownedWeapons:ownedWeapons,lobbySelectedWeapon:lobbySelectedWeapon})); } catch(e) {}
 }
 
 function showShop() {
@@ -2374,6 +2506,7 @@ function showShop() {
   shopTab = 'tanks';
   document.getElementById('shopTabTanks').className = 'shop-tab active';
   document.getElementById('shopTabUpgrades').className = 'shop-tab';
+  document.getElementById('shopTabWeapons').className = 'shop-tab';
   renderShopTanks();
 }
 function hideShop() { document.getElementById('shopOverlay').classList.remove('show'); }
@@ -2382,8 +2515,10 @@ function showShopTab(tab) {
   shopTab = tab;
   document.getElementById('shopTabTanks').className = 'shop-tab' + (tab==='tanks'?' active':'');
   document.getElementById('shopTabUpgrades').className = 'shop-tab' + (tab==='upgrades'?' active':'');
+  document.getElementById('shopTabWeapons').className = 'shop-tab' + (tab==='weapons'?' active':'');
   if (tab === 'tanks') renderShopTanks();
-  else renderShopUpgrades();
+  else if (tab === 'upgrades') renderShopUpgrades();
+  else renderShopWeapons();
 }
 
 function renderShopTanks() {
@@ -2467,6 +2602,40 @@ function buyUpgrade(id) {
   saveShopData();
   document.getElementById('shopMoney').textContent = '$' + money;
   renderShopUpgrades();
+}
+
+function renderShopWeapons() {
+  var el = document.getElementById('shopList');
+  var html = '';
+  for (var i = 0; i < weaponShop.length; i++) {
+    var w = weaponShop[i];
+    var owned = ownedWeapons.indexOf(w.idx) !== -1;
+    var canBuy = !owned && money >= w.cost;
+    html += '<div class="shop-item' + (owned?' owned':'') + '">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div class="si-name" style="color:' + weapons[w.idx].color + '">' + w.name + '</div>';
+    html += '<div class="si-desc">' + w.desc + '</div>';
+    html += '<div class="si-stats">DAM ' + weapons[w.idx].damage + ' | ACC ' + Math.round(weapons[w.idx].accuracy*100) + '%</div>';
+    html += '</div>';
+    if (owned) html += '<button class="shop-btn owned-btn" disabled>OWNED</button>';
+    else html += '<button class="shop-btn" onclick="buyWeapon(' + w.idx + ')' + (canBuy?'':' disabled') + '>$' + w.cost + '</button>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+function buyWeapon(idx) {
+  if (ownedWeapons.indexOf(idx) !== -1) return;
+  var w = null;
+  for (var i = 0; i < weaponShop.length; i++) { if (weaponShop[i].idx === idx) { w = weaponShop[i]; break; } }
+  if (!w) return;
+  if (money < w.cost) return;
+  money -= w.cost;
+  ownedWeapons.push(idx);
+  if (lobbySelectedWeapon === 0 && ownedWeapons.length > 1) lobbySelectedWeapon = idx;
+  saveShopData();
+  document.getElementById('shopMoney').textContent = '$' + money;
+  renderShopWeapons();
+  updateLobbyWeapons();
 }
 
 function getTankStats() {
