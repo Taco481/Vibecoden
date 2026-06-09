@@ -2648,7 +2648,7 @@ function renderShopWeapons() {
     html += '<div class="si-stats">DAM ' + weapons[w.idx].damage + ' | ACC ' + Math.round(weapons[w.idx].accuracy*100) + '%</div>';
     html += '</div>';
     if (owned) html += '<button class="shop-btn owned-btn" disabled>OWNED</button>';
-    else html += '<button class="shop-btn" onclick="buyWeapon(' + w.idx + ')' + (canBuy?'':' disabled') + '>$' + w.cost + '</button>';
+    else html += '<button class="shop-btn" onclick="buyWeapon(' + w.idx + ')"' + (canBuy?'':' disabled') + '>$' + w.cost + '</button>';
     html += '</div>';
   }
   el.innerHTML = html;
