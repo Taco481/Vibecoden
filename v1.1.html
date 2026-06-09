@@ -335,33 +335,11 @@
     z-index: 2; pointer-events: none; font-family: monospace;
   }
 
-  #errorConsole {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: rgba(0,0,0,0.92); color: #ff6666;
-    font: 12px monospace; padding: 6px 12px;
-    max-height: 120px; overflow-y: auto; z-index: 999;
-    border-top: 2px solid #ff4444; display: none;
-    white-space: pre-wrap; word-break: break-all;
-  }
-  #errorConsole.show { display: block; }
-  #errorConsole, #errorConsole * { user-select: text; -webkit-user-select: text; }
   #mpStatus, #mpStatus * { user-select: text; -webkit-user-select: text; }
   .mp-status, .mp-status * { user-select: text; -webkit-user-select: text; }
-  #errorConsole .err { color: #ff6666; }
-  #errorConsole .warn { color: #ffaa44; }
-  #errorConsole .info { color: #66ccff; }
-  #errorToggle {
-    position: fixed; bottom: 4px; right: 4px; z-index: 1000;
-    background: rgba(255,50,50,0.7); border: 1px solid rgba(255,100,100,0.5);
-    border-radius: 4px; padding: 2px 8px; color: #fff;
-    font: bold 11px monospace; cursor: pointer; display: none;
-  }
-  #errorToggle:hover { background: rgba(255,50,50,0.9); }
 </style>
 </head>
 <body>
-<div id="errorConsole"></div>
-<button id="errorToggle">LOG</button>
 
 <div class="wrapper">
   <div class="hp-section" id="hpSection">
@@ -495,40 +473,16 @@
 </div>
 
 <script>
-var errConsole = document.getElementById('errorConsole');
-var errorToggle = document.getElementById('errorToggle');
-errorToggle.addEventListener('click', function() {
-  errConsole.classList.toggle('show');
-  errorToggle.textContent = errConsole.classList.contains('show') ? 'VERB' : 'LOG';
-});
-function logToConsole(msg, type) {
-  if (!type) type = 'err';
-  errorToggle.style.display = 'block';
-  errConsole.classList.add('show');
-  errorToggle.textContent = 'VERB';
-  var div = document.createElement('div');
-  div.className = type;
-  div.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-  errConsole.appendChild(div);
-  errConsole.scrollTop = errConsole.scrollHeight;
-}
-window.onerror = function(msg, url, line) {
-  logToConsole(msg + ' (line ' + line + ')');
-  return true;
-};
-window.addEventListener('unhandledrejection', function(e) {
-  logToConsole('Promise: ' + e.reason);
-});
+function logToConsole() {}
 
 var canvas = document.getElementById('arena');
 var ctx = canvas.getContext('2d');
-logToConsole('Game loaded. Canvas ' + canvas.width + 'x' + canvas.height, 'info');
 
 var W = 800, H = 500;
 var bgImage = new Image();
 bgImage.src = '2d landscape.webp';
 var bgLoaded = false;
-bgImage.onload = function() { bgLoaded = true; logToConsole('Background loaded (' + bgImage.width + 'x' + bgImage.height + ')', 'info'); };
+bgImage.onload = function() { bgLoaded = true; };
 
 var weapons = [
   { name: "Laser",    damage: 25, accuracy: 0.90, speed: 14, color: "#ff2222", size: 5,  desc: "High precision" },
