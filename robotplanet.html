@@ -561,12 +561,13 @@
     </div>
 
     <div class="shop-overlay" id="shopOverlay">
-      <h2>⚙ TANK SHOP</h2>
+      <h2>⚙ SHOP</h2>
       <div class="shop-money" id="shopMoney">$0</div>
   <div class="shop-tabs">
     <button class="shop-tab active" id="shopTabTanks" onclick="showShopTab('tanks')">Tanks</button>
     <button class="shop-tab" id="shopTabUpgrades" onclick="showShopTab('upgrades')">Upgrades</button>
     <button class="shop-tab" id="shopTabWeapons" onclick="showShopTab('weapons')">Weapons</button>
+    <button class="shop-tab" id="shopTabCollection" onclick="showShopTab('collection')">Collection</button>
   </div>
       <div class="shop-list" id="shopList"></div>
       <button class="shop-close" onclick="hideShop()">Close</button>
@@ -2493,11 +2494,11 @@ var upgradeDefs = [
   { id:'damage', name:'Cannon', levels:2, cost:[1500,3000], bonus:[0.15,0.3], desc:'+{val}% damage' },
 ];
 var weaponShop = [
-  { idx:0, name:'Laser', cost:0, desc:'High precision' },
-  { idx:1, name:'Rocket', cost:3000, desc:'Devastating blast' },
-  { idx:2, name:'Shield', cost:4500, desc:'Block + heal' },
-  { idx:3, name:'EMP', cost:6000, desc:'Stuns enemy' },
-  { idx:4, name:'Minigun', cost:8000, desc:'Rapid fire' },
+  { idx:0, name:'Laser', cost:0, desc:'High precision beam' },
+  { idx:1, name:'Rocket', cost:1000, desc:'Devastating blast' },
+  { idx:2, name:'Shield', cost:1500, desc:'Block incoming fire' },
+  { idx:3, name:'EMP', cost:2000, desc:'Stuns enemies' },
+  { idx:4, name:'Minigun', cost:2500, desc:'Rapid fire' },
 ];
 var tankAbilities = {
   default: { name:'Shield Boost', desc:'+50 shield instantly', cooldown:300, activate:function(p){p.shield=Math.min(p.shield+50,100);} },
@@ -2534,6 +2535,7 @@ function showShop() {
   document.getElementById('shopTabTanks').className = 'shop-tab active';
   document.getElementById('shopTabUpgrades').className = 'shop-tab';
   document.getElementById('shopTabWeapons').className = 'shop-tab';
+  document.getElementById('shopTabCollection').className = 'shop-tab';
   renderShopTanks();
 }
 function hideShop() { document.getElementById('shopOverlay').classList.remove('show'); }
@@ -2543,9 +2545,11 @@ function showShopTab(tab) {
   document.getElementById('shopTabTanks').className = 'shop-tab' + (tab==='tanks'?' active':'');
   document.getElementById('shopTabUpgrades').className = 'shop-tab' + (tab==='upgrades'?' active':'');
   document.getElementById('shopTabWeapons').className = 'shop-tab' + (tab==='weapons'?' active':'');
+  document.getElementById('shopTabCollection').className = 'shop-tab' + (tab==='collection'?' active':'');
   if (tab === 'tanks') renderShopTanks();
   else if (tab === 'upgrades') renderShopUpgrades();
-  else renderShopWeapons();
+  else if (tab === 'weapons') renderShopWeapons();
+  else renderShopCollection();
 }
 
 function renderShopTanks() {
@@ -2666,6 +2670,52 @@ function buyWeapon(idx) {
   document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
   renderShopWeapons();
   updateLobbyWeapons();
+}
+
+function renderShopCollection() {
+  var el = document.getElementById('shopList');
+  var html = '<div style="color:#888;font-size:10px;text-align:center;margin-bottom:8px">YOUR COLLECTION</div>';
+
+  html += '<div style="font-size:11px;color:#ddd;margin-bottom:4px">TANKS</div>';
+  var hasTank = false;
+  for (var i = 0; i < tankTypes.length; i++) {
+    var t = tankTypes[i];
+    if (ownedTanks.indexOf(t.id) !== -1) {
+      hasTank = true;
+      var eq = selectedTankId === t.id ? ' <span style="color:#44ff88;font-size:9px">[EQUIPPED]</span>' : '';
+      html += '<div style="color:' + t.color + ';font-size:11px;padding:2px 4px">' + t.name + eq + '</div>';
+    }
+  }
+  if (!hasTank) html += '<div style="color:#666;font-size:10px;padding:2px 4px">None owned</div>';
+
+  html += '<div style="font-size:11px;color:#ddd;margin-top:8px;margin-bottom:4px">WEAPONS</div>';
+  var hasWep = false;
+  for (var i = 0; i < weaponShop.length; i++) {
+    var w = weaponShop[i];
+    if (ownedWeapons.indexOf(w.idx) !== -1) {
+      hasWep = true;
+      var sel = lobbySelectedWeapon === w.idx ? ' <span style="color:#44ff88;font-size:9px">[SELECTED]</span>' : '';
+      html += '<div style="color:' + weapons[w.idx].color + ';font-size:11px;padding:2px 4px">' + w.name + sel + '</div>';
+    }
+  }
+  if (!hasWep) html += '<div style="color:#666;font-size:10px;padding:2px 4px">None owned</div>';
+
+  html += '<div style="font-size:11px;color:#ddd;margin-top:8px;margin-bottom:4px">UPGRADES</div>';
+  var hasUpg = false;
+  for (var key in upgradeLevels) {
+    hasUpg = true;
+    var parts = key.split('_');
+    var tid = parts[0], uid = parts[1];
+    var tt = null, uu = null;
+    for (var j = 0; j < tankTypes.length; j++) { if (tankTypes[j].id === tid) { tt = tankTypes[j]; break; } }
+    for (var j = 0; j < upgradeDefs.length; j++) { if (upgradeDefs[j].id === uid) { uu = upgradeDefs[j]; break; } }
+    if (tt && uu) {
+      html += '<div style="color:#aaa;font-size:10px;padding:2px 4px">' + tt.name + ' — ' + uu.name + ' Lv.' + upgradeLevels[key] + '</div>';
+    }
+  }
+  if (!hasUpg) html += '<div style="color:#666;font-size:10px;padding:2px 4px">No upgrades purchased</div>';
+
+  el.innerHTML = html;
 }
 
 function getTankStats() {
