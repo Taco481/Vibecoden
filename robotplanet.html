@@ -2408,6 +2408,7 @@ async function registerAccount() {
     showAccountStatus('Error: ' + error.message); return;
   }
   loggedInUser = user; profileId = data.id;
+  rememberDevice(user, hash);
   onLogin();
 }
 
@@ -2421,6 +2422,7 @@ async function loginAccount() {
   var { data, error } = await supabaseClient.from('profiles').select('*').eq('username', user).eq('password', hash).single();
   if (error || !data) { showAccountStatus('Invalid username or password'); return; }
   loggedInUser = user; profileId = data.id; money = data.money || 0; killCount = data.kills || 0; xp = data.xp || 0;
+  rememberDevice(user, hash);
   onLogin();
 }
 
@@ -2443,12 +2445,32 @@ function onLogin() {
 
 function logoutAccount() {
   loggedInUser = null; profileId = null;
+  try { localStorage.removeItem('rp_remember'); } catch(e) {}
   var ai = document.getElementById('accountInfo');
   var ab = document.getElementById('accountBtns');
   var mel = document.getElementById('moneyDisplay');
   if (ai) ai.style.display = 'none';
   if (ab) ab.style.display = 'flex';
   if (mel) mel.textContent = '$0';
+}
+
+function rememberDevice(user, hash) {
+  try { localStorage.setItem('rp_remember', JSON.stringify({user:user, hash:hash})); } catch(e) {}
+}
+
+async function tryAutoLogin() {
+  try {
+    var raw = localStorage.getItem('rp_remember');
+    if (!raw) return;
+    var d = JSON.parse(raw);
+    if (!d.user || !d.hash) return;
+    initSupabase();
+    if (!supabaseClient) return;
+    var { data, error } = await supabaseClient.from('profiles').select('*').eq('username', d.user).eq('password', d.hash).single();
+    if (error || !data) { try { localStorage.removeItem('rp_remember'); } catch(e) {} return; }
+    loggedInUser = d.user; profileId = data.id; money = data.money || 0; killCount = data.kills || 0; xp = data.xp || 0;
+    onLogin();
+  } catch(e) { try { localStorage.removeItem('rp_remember'); } catch(e2) {} }
 }
 
 async function saveProfileStats() {
@@ -2791,6 +2813,7 @@ function getTankStats() {
   }
   return { hp: hp, speed: speed, shield: shield, dmg: dmg, color: t.color };
 }
+setTimeout(tryAutoLogin, 500);
 </script>
 </body>
 </html>
