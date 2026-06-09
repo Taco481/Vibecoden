@@ -625,16 +625,16 @@ bgImage.onload = function() { bgLoaded = true; logToConsole('Background loaded (
 
 var weapons = [
   { name: "Laser",    damage: 25, accuracy: 0.90, speed: 14, color: "#ff2222", size: 5,  desc: "High precision" },
-  { name: "Rocket",   damage: 50, accuracy: 0.50, speed: 8,  color: "#ff8800", size: 8,  desc: "Devastating" },
+  { name: "Rocket",   damage: 35, accuracy: 0.55, speed: 8,  color: "#ff8800", size: 8,  desc: "Devastating" },
   { name: "Shield",   damage: 0,  accuracy: 1.0,  speed: 0,  color: "#44ddff", size: 0,  desc: "Block + heal", special: "defend" },
   { name: "EMP",      damage: 18, accuracy: 0.75, speed: 12, color: "#dd44ff", size: 6,  desc: "Stuns enemy", special: "stun" },
   { name: "Minigun",  damage: 8,  accuracy: 0.85, speed: 16, color: "#ffdd44", size: 3,  desc: "4 shots/turn", special: "multi" },
   // Shop weapons
-  { name: "Piercer",  damage: 28, accuracy: 0.88, speed: 15, color: "#00ffcc", size: 5,  desc: "Penetrates enemies", special: "pierce" },
-  { name: "Vampire",  damage: 22, accuracy: 0.80, speed: 12, color: "#ff3366", size: 5,  desc: "Heals 30% of dmg", special: "vampire" },
-  { name: "Tesla Arc",damage: 20, accuracy: 0.82, speed: 13, color: "#66ddff", size: 6,  desc: "Chains to 2 more", special: "chain" },
-  { name: "Plasma",   damage: 12, accuracy: 0.78, speed: 14, color: "#ff88ff", size: 4,  desc: "5-shot burst", special: "burst" },
-  { name: "Mortar",   damage: 40, accuracy: 0.55, speed: 7,  color: "#ffaa44", size: 9,  desc: "Area splash", special: "splash" },
+  { name: "Piercer",  damage: 25, accuracy: 0.88, speed: 15, color: "#00ffcc", size: 5,  desc: "Penetrates enemies", special: "pierce" },
+  { name: "Vampire",  damage: 20, accuracy: 0.80, speed: 12, color: "#ff3366", size: 5,  desc: "Heals 30% of dmg", special: "vampire" },
+  { name: "Tesla Arc",damage: 18, accuracy: 0.82, speed: 13, color: "#66ddff", size: 6,  desc: "Chains to 2 more", special: "chain" },
+  { name: "Plasma",   damage: 10, accuracy: 0.78, speed: 14, color: "#ff88ff", size: 4,  desc: "5-shot burst", special: "burst" },
+  { name: "Mortar",   damage: 35, accuracy: 0.55, speed: 7,  color: "#ffaa44", size: 9,  desc: "Area splash", special: "splash" },
 ];
 
 var player, enemies = [];
@@ -2020,6 +2020,22 @@ function drawHUD() {
     ctx.fillText('[' + pw.name + ']', player.x, player.y + player.w/2 + 30);
     ctx.shadowBlur = 0;
   }
+  var ab = tankAbilities[selectedTankId];
+  if (ab && loggedInUser) {
+    var abY = player.y + player.w/2 + 42;
+    ctx.fillStyle = abilityCooldown > 0 ? '#ff6644' : '#44ff88';
+    ctx.font = "10px monospace"; ctx.textAlign = "center";
+    ctx.fillText('[E] ' + ab.name + (abilityCooldown > 0 ? ' ' + Math.ceil(abilityCooldown/60) + 's' : ''), player.x, abY);
+    if (abilityCooldown > 0) {
+      var cx = player.x - 40, cy = abY - 4, r = 7;
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      var pct = 1 - abilityCooldown / tankAbilities[selectedTankId].cooldown;
+      ctx.strokeStyle = '#ff6644';
+      ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI/2, -Math.PI/2 + Math.PI*2*pct); ctx.stroke();
+    }
+  }
   if (comboCount > 1 && comboTimer > 0) {
     var display = document.getElementById('comboDisplay');
     display.textContent = comboCount + 'x COMBO!';
@@ -2562,11 +2578,11 @@ var upgradeDefs = [
   { id:'damage', name:'Cannon', levels:2, cost:[1500,3000], bonus:[0.15,0.3], desc:'+{val}% damage' },
 ];
 var weaponShop = [
-  { idx:5, name:'Piercer', cost:3000, desc:'Penetrates through enemies' },
-  { idx:6, name:'Vampire', cost:4000, desc:'Heals 30% of damage dealt' },
-  { idx:7, name:'Tesla Arc', cost:5000, desc:'Chains to 2 nearby enemies' },
-  { idx:8, name:'Plasma', cost:6000, desc:'5-shot burst' },
-  { idx:9, name:'Mortar', cost:8000, desc:'Area splash damage' },
+  { idx:5, name:'Piercer', cost:4000, desc:'Penetrates through enemies' },
+  { idx:6, name:'Vampire', cost:3500, desc:'Heals 30% of damage dealt' },
+  { idx:7, name:'Tesla Arc', cost:4500, desc:'Chains to 2 nearby enemies' },
+  { idx:8, name:'Plasma', cost:5000, desc:'5-shot burst' },
+  { idx:9, name:'Mortar', cost:7000, desc:'Area splash damage' },
 ];
 var tankAbilities = {
   default: { name:'Shield Boost', desc:'+50 shield instantly', cooldown:300, activate:function(p){p.shield=Math.min(p.shield+50,100);} },

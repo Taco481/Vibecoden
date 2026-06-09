@@ -575,16 +575,16 @@ bgImage.onload = function() { bgLoaded = true; };
 
 var weapons = [
   { name: "Laser",    damage: 25, accuracy: 0.90, speed: 14, color: "#ff2222", size: 5,  desc: "High precision" },
-  { name: "Rocket",   damage: 50, accuracy: 0.50, speed: 8,  color: "#ff8800", size: 8,  desc: "Devastating" },
+  { name: "Rocket",   damage: 35, accuracy: 0.55, speed: 8,  color: "#ff8800", size: 8,  desc: "Devastating" },
   { name: "Shield",   damage: 0,  accuracy: 1.0,  speed: 0,  color: "#44ddff", size: 0,  desc: "Block + heal", special: "defend" },
   { name: "EMP",      damage: 18, accuracy: 0.75, speed: 12, color: "#dd44ff", size: 6,  desc: "Stuns enemy", special: "stun" },
   { name: "Minigun",  damage: 8,  accuracy: 0.85, speed: 16, color: "#ffdd44", size: 3,  desc: "4 shots/turn", special: "multi" },
   // Shop weapons
-  { name: "Piercer",  damage: 28, accuracy: 0.88, speed: 15, color: "#00ffcc", size: 5,  desc: "Penetrates enemies", special: "pierce" },
-  { name: "Vampire",  damage: 22, accuracy: 0.80, speed: 12, color: "#ff3366", size: 5,  desc: "Heals 30% of dmg", special: "vampire" },
-  { name: "Tesla Arc",damage: 20, accuracy: 0.82, speed: 13, color: "#66ddff", size: 6,  desc: "Chains to 2 more", special: "chain" },
-  { name: "Plasma",   damage: 12, accuracy: 0.78, speed: 14, color: "#ff88ff", size: 4,  desc: "5-shot burst", special: "burst" },
-  { name: "Mortar",   damage: 40, accuracy: 0.55, speed: 7,  color: "#ffaa44", size: 9,  desc: "Area splash", special: "splash" },
+  { name: "Piercer",  damage: 25, accuracy: 0.88, speed: 15, color: "#00ffcc", size: 5,  desc: "Penetrates enemies", special: "pierce" },
+  { name: "Vampire",  damage: 20, accuracy: 0.80, speed: 12, color: "#ff3366", size: 5,  desc: "Heals 30% of dmg", special: "vampire" },
+  { name: "Tesla Arc",damage: 18, accuracy: 0.82, speed: 13, color: "#66ddff", size: 6,  desc: "Chains to 2 more", special: "chain" },
+  { name: "Plasma",   damage: 10, accuracy: 0.78, speed: 14, color: "#ff88ff", size: 4,  desc: "5-shot burst", special: "burst" },
+  { name: "Mortar",   damage: 35, accuracy: 0.55, speed: 7,  color: "#ffaa44", size: 9,  desc: "Area splash", special: "splash" },
 ];
 
 var player, enemies = [];
@@ -795,7 +795,7 @@ function setGameMode(mode) {
 function initSupabase() {
   if (supabaseClient) return;
   if (!window.supabase) {
-    //logToConsole('Supabase CDN not loaded!', 'err');
+    //logToConsole'Supabase CDN not loaded!', 'err');
     document.getElementById('mpStatus').style.display = 'block';
     document.getElementById('mpStatus').textContent = 'Error: CDN not loaded. Check internet.';
     return;
@@ -804,17 +804,17 @@ function initSupabase() {
     'https://eedbcqpygnwquhuvvoho.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlZGJjcXB5Z253cXVodXZ2b2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTY1MDQsImV4cCI6MjA5NjIzMjUwNH0.DlmmMqAhYHk4CUf5nWXZWn2im3Gx1vk5aEALZ2x1MmM'
   );
-  //logToConsole('Supabase initialized', 'info');
+  //logToConsole'Supabase initialized', 'info');
 }
 
 function createRoom() {
   initSupabase();
-  if (!supabaseClient) { //logToConsole('createRoom: supabaseClient is null', 'err'); return; }
+  if (!supabaseClient) { return; }
   playerId = 'p_' + Math.random().toString(36).substr(2, 8);
   isHost = true;
   roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
   gameModeType = document.getElementById('gameModeSelect').value;
-  //logToConsole('Room created: ' + roomCode + ' mode=' + gameModeType, 'info');
+  //logToConsole'Room created: ' + roomCode + ' mode=' + gameModeType, 'info');
   document.getElementById('mpStatus').style.display = 'block';
   document.getElementById('mpStatus').textContent = 'Room: ' + roomCode + ' — Waiting for players...';
   document.getElementById('leaveRoomBtn').style.display = 'inline-block';
@@ -824,8 +824,8 @@ function createRoom() {
   supabaseClient.from('rooms').insert({
     code: roomCode, host_id: playerId, status: 'waiting'
   }).then(function(resp) {
-    if (resp.error) { //logToConsole('DB error: ' + JSON.stringify(resp.error), 'err'); document.getElementById('mpStatus').textContent = 'Error creating room'; return; }
-    //logToConsole('Room saved in DB', 'info');
+    if (resp.error) { document.getElementById('mpStatus').textContent = 'Error creating room'; return; }
+    //logToConsole'Room saved in DB', 'info');
     subscribeToRoom();
   });
 }
@@ -834,7 +834,7 @@ function joinRoom() {
   var code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
   if (code.length < 3) { document.getElementById('mpStatus').textContent = 'Enter a valid room code'; document.getElementById('mpStatus').style.display = 'block'; return; }
   initSupabase();
-  if (!supabaseClient) { //logToConsole('joinRoom: supabaseClient is null', 'err'); return; }
+  if (!supabaseClient) { return; }
   playerId = 'p_' + Math.random().toString(36).substr(2, 8);
   isHost = false;
   roomCode = code;
@@ -843,19 +843,19 @@ function joinRoom() {
   document.getElementById('mpStatus').textContent = 'Joining room ' + code + '...';
   document.getElementById('leaveRoomBtn').style.display = 'inline-block';
   document.getElementById('startBtn').style.display = 'none';
-  //logToConsole('Joining room: ' + code, 'info');
+  //logToConsole'Joining room: ' + code, 'info');
   subscribeToRoom();
   // Timeout: if no config broadcast within 5s, room likely doesn't exist
   setTimeout(function() {
     if (document.getElementById('mpStatus').textContent === 'Joining room ' + code + '...') {
       document.getElementById('mpStatus').textContent = 'Room not found';
-      //logToConsole('Room not found (timeout)', 'err');
+      //logToConsole'Room not found (timeout)', 'err');
     }
   }, 5000);
 }
 
 function subscribeToRoom() {
-  //logToConsole('Subscribing to room ' + roomCode, 'info');
+  //logToConsole'Subscribing to room ' + roomCode, 'info');
   mpChannel = supabaseClient.channel('room-' + roomCode);
 
   mpChannel.on('broadcast', { event: 'state' }, function(msg) {
@@ -937,13 +937,13 @@ function subscribeToRoom() {
   mpChannel.on('broadcast', { event: 'start' }, function(msg) {
     var data = msg.payload || msg;
     if (data.host_id === playerId) return;
-    //logToConsole('Host started the game!', 'info');
+    //logToConsole'Host started the game!', 'info');
     // Sync mpPlayerList from current known players before starting
     startGameMP();
   });
 
   mpChannel.subscribe(function(status) {
-    //logToConsole('Channel status: ' + status, 'info');
+    //logToConsole'Channel status: ' + status, 'info');
     if (status === 'SUBSCRIBED') {
       supabaseClient.from('player_states').upsert({
         room_code: roomCode, player_id: playerId,
@@ -951,7 +951,7 @@ function subscribeToRoom() {
         x: 400, y: 250, hp: 200, max_hp: 200,
         body_angle: 0, turret_angle: 0, shield: 0, stunned: false, alive: true, weapon: 0
       }, { onConflict: 'room_code,player_id' }).then(function(r) {
-        if (r.error) //logToConsole('init state error: ' + JSON.stringify(r.error), 'err');
+        if (r.error);
       });
       var myName = document.getElementById('nameInput').value.trim() || "MechWarrior";
       if (mpPlayerList.filter(function(p){return p.id===playerId;}).length === 0) mpPlayerList.push({id: playerId, name: myName});
@@ -1030,7 +1030,7 @@ function upsertStateDB() {
     shield: player.shield || 0, stunned: player.stunned || false,
     alive: player.alive(), weapon: selectedWeapon
   }, { onConflict: 'room_code,player_id' }).then(function(r) {
-    if (r.error) //logToConsole('upsert DB error: ' + JSON.stringify(r.error), 'err');
+    if (r.error);
   });
 }
 
@@ -1388,12 +1388,12 @@ function fireProjectile(fromX, fromY, toX, toY, weapon, attacker) {
 }
 
 function startGameMP() {
-  if (!roomCode) { //logToConsole('startGame MP: roomCode is null', 'err'); return; }
-  if (gameActive) { //logToConsole('startGame MP: game already active', 'warn'); return; }
+  if (!roomCode) { return; }
+  if (gameActive) { return; }
   // Ensure local player is in mpPlayerList
   var myName = document.getElementById('nameInput').value.trim() || "MechWarrior";
   if (mpPlayerList.filter(function(p){return p.id===playerId;}).length === 0) mpPlayerList.push({id: playerId, name: myName});
-  //logToConsole('startGame MP: isHost=' + isHost + ' room=' + roomCode + ' players=' + mpPlayerList.length, 'info');
+  //logToConsole'startGame MP: isHost=' + isHost + ' room=' + roomCode + ' players=' + mpPlayerList.length, 'info');
   gameModeType = gameModeType || 'ffa';
 
   // Assign teams
@@ -1970,6 +1970,22 @@ function drawHUD() {
     ctx.fillText('[' + pw.name + ']', player.x, player.y + player.w/2 + 30);
     ctx.shadowBlur = 0;
   }
+  var ab = tankAbilities[selectedTankId];
+  if (ab && loggedInUser) {
+    var abY = player.y + player.w/2 + 42;
+    ctx.fillStyle = abilityCooldown > 0 ? '#ff6644' : '#44ff88';
+    ctx.font = "10px monospace"; ctx.textAlign = "center";
+    ctx.fillText('[E] ' + ab.name + (abilityCooldown > 0 ? ' ' + Math.ceil(abilityCooldown/60) + 's' : ''), player.x, abY);
+    if (abilityCooldown > 0) {
+      var cx = player.x - 40, cy = abY - 4, r = 7;
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+      var pct = 1 - abilityCooldown / tankAbilities[selectedTankId].cooldown;
+      ctx.strokeStyle = '#ff6644';
+      ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI/2, -Math.PI/2 + Math.PI*2*pct); ctx.stroke();
+    }
+  }
   if (comboCount > 1 && comboTimer > 0) {
     var display = document.getElementById('comboDisplay');
     display.textContent = comboCount + 'x COMBO!';
@@ -2512,11 +2528,11 @@ var upgradeDefs = [
   { id:'damage', name:'Cannon', levels:2, cost:[1500,3000], bonus:[0.15,0.3], desc:'+{val}% damage' },
 ];
 var weaponShop = [
-  { idx:5, name:'Piercer', cost:3000, desc:'Penetrates through enemies' },
-  { idx:6, name:'Vampire', cost:4000, desc:'Heals 30% of damage dealt' },
-  { idx:7, name:'Tesla Arc', cost:5000, desc:'Chains to 2 nearby enemies' },
-  { idx:8, name:'Plasma', cost:6000, desc:'5-shot burst' },
-  { idx:9, name:'Mortar', cost:8000, desc:'Area splash damage' },
+  { idx:5, name:'Piercer', cost:4000, desc:'Penetrates through enemies' },
+  { idx:6, name:'Vampire', cost:3500, desc:'Heals 30% of damage dealt' },
+  { idx:7, name:'Tesla Arc', cost:4500, desc:'Chains to 2 nearby enemies' },
+  { idx:8, name:'Plasma', cost:5000, desc:'5-shot burst' },
+  { idx:9, name:'Mortar', cost:7000, desc:'Area splash damage' },
 ];
 var tankAbilities = {
   default: { name:'Shield Boost', desc:'+50 shield instantly', cooldown:300, activate:function(p){p.shield=Math.min(p.shield+50,100);} },
