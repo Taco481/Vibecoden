@@ -629,6 +629,12 @@ var weapons = [
   { name: "Shield",   damage: 0,  accuracy: 1.0,  speed: 0,  color: "#44ddff", size: 0,  desc: "Block + heal", special: "defend" },
   { name: "EMP",      damage: 18, accuracy: 0.75, speed: 12, color: "#dd44ff", size: 6,  desc: "Stuns enemy", special: "stun" },
   { name: "Minigun",  damage: 8,  accuracy: 0.85, speed: 16, color: "#ffdd44", size: 3,  desc: "4 shots/turn", special: "multi" },
+  // Shop weapons
+  { name: "Piercer",  damage: 28, accuracy: 0.88, speed: 15, color: "#00ffcc", size: 5,  desc: "Penetrates enemies", special: "pierce" },
+  { name: "Vampire",  damage: 22, accuracy: 0.80, speed: 12, color: "#ff3366", size: 5,  desc: "Heals 30% of dmg", special: "vampire" },
+  { name: "Tesla Arc",damage: 20, accuracy: 0.82, speed: 13, color: "#66ddff", size: 6,  desc: "Chains to 2 more", special: "chain" },
+  { name: "Plasma",   damage: 12, accuracy: 0.78, speed: 14, color: "#ff88ff", size: 4,  desc: "5-shot burst", special: "burst" },
+  { name: "Mortar",   damage: 40, accuracy: 0.55, speed: 7,  color: "#ffaa44", size: 9,  desc: "Area splash", special: "splash" },
 ];
 
 var player, enemies = [];
@@ -1415,9 +1421,9 @@ function fireProjectile(fromX, fromY, toX, toY, weapon, attacker) {
   var dy = toY - fromY;
   var dist = Math.sqrt(dx * dx + dy * dy);
   if (dist < 5) return;
-  var hits = weapon.special === "multi" ? 4 : 1;
+  var hits = weapon.special === "multi" ? 4 : weapon.special === "burst" ? 5 : 1;
   for (var i = 0; i < hits; i++) {
-    var spread = weapon.special === "multi" ? 0.12 : 0;
+    var spread = (weapon.special === "multi" || weapon.special === "burst") ? 0.12 : 0;
     var angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * spread;
     var speed = weapon.speed + Math.random() * 3;
     projectiles.push({
@@ -1496,8 +1502,7 @@ function startGameMP() {
   var pName = input ? input.value.trim() || "MechWarrior" : "MechWarrior";
 
   projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
-  if (hasWeaponRestriction()) selectedWeapon = lobbySelectedWeapon;
-  else selectedWeapon = 0; gameActive = true; canShoot = true;
+  selectedWeapon = 0; gameActive = true; canShoot = true;
   shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0; money = 0;
   screenShake.intensity = 0;
 
@@ -1559,8 +1564,7 @@ function startGame() {
     enemies.push(ai);
   }
   projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
-  if (hasWeaponRestriction()) selectedWeapon = lobbySelectedWeapon;
-  else selectedWeapon = 0; gameActive = true; canShoot = true;
+  selectedWeapon = 0; gameActive = true; canShoot = true;
   shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0; money = 0;
   screenShake.intensity = 0;
   document.getElementById('startScreen').style.display = 'none';
@@ -1599,15 +1603,9 @@ function buildEnemyHpBars() {
 
 function updateWeaponBar() {
   var bar = document.getElementById('weaponBar');
-  var restricted = hasWeaponRestriction() && gameActive;
-  if (restricted) {
-    var w = weapons[lobbySelectedWeapon];
-    bar.innerHTML = '<div class="w-btn active" style="cursor:default">' +
-      '<span class="key">⚔</span>' +
-      '<span class="wname" style="color:' + w.color + '">' + w.name + '</span></div>';
-    return;
-  }
-  bar.innerHTML = weapons.map(function(w, i) {
+  var loadout = (loggedInUser && ownedWeapons.length > 5) ? lobbyLoadout : [0,1,2,3,4];
+  bar.innerHTML = loadout.map(function(idx, i) {
+    var w = weapons[idx] || weapons[0];
     return '<div class="w-btn ' + (i === selectedWeapon ? 'active' : '') + '" onclick="selectWeapon(' + i + ')">' +
       '<span class="key">' + (i + 1) + '</span>' +
       '<span class="wname" style="color:' + w.color + '">' + w.name + '</span></div>';
@@ -1620,7 +1618,7 @@ document.addEventListener('keydown', function(e) {
   if (!e || !e.key) return;
   keys[e.key.toLowerCase()] = true;
   var n = parseInt(e.key);
-  if (!(hasWeaponRestriction() && gameActive) && n >= 1 && n <= 5) selectWeapon(n - 1);
+  if (n >= 1 && n <= 5) selectWeapon(n - 1);
   if (e.key === 'e' || e.key === 'E') useAbility();
   if ((e.key === ' ' || e.key === 'Space') && gameActive && canShoot && player && player.alive()) {
     e.preventDefault();
@@ -1677,7 +1675,8 @@ function playerShootAuto() {
 // Fire button auto-fire in game loop
 
 function playerShoot() {
-  var w = weapons[selectedWeapon];
+  var loadout = (loggedInUser && ownedWeapons.length > 5) ? lobbyLoadout : [0,1,2,3,4];
+  var w = weapons[loadout[selectedWeapon]] || weapons[0];
   if (w.special === "defend") {
     player.shield = 35;
     player.heal(10);
@@ -1695,8 +1694,8 @@ function playerShoot() {
   fireProjectile(player.x, player.y, tx, ty, w, player);
   player.shootFlash = 8;
   canShoot = false;
-  shootCooldown = w.special === "multi" ? 28 : 15;
-  if (gameMode === 'multi') sendShot(player.x, player.y, angle, selectedWeapon);
+  shootCooldown = (w.special === "multi" || w.special === "burst") ? 28 : 15;
+  if (gameMode === 'multi') sendShot(player.x, player.y, angle, loadout[selectedWeapon]);
 }
 
 function getTargets(attacker) {
@@ -1729,7 +1728,7 @@ function processHits() {
       projectiles.splice(i, 1);
       continue;
     }
-    if (w.special !== "multi" && Math.random() > w.accuracy) {
+    if (w.special !== "multi" && w.special !== "burst" && Math.random() > w.accuracy) {
       createExplosion(p.x, p.y, "#888888", 8, false);
       addHitText(p.x, p.y, "MISS!", "#888888");
       projectiles.splice(i, 1);
@@ -1743,17 +1742,61 @@ function processHits() {
       target.stunned = true;
       addHitText(p.x, p.y, Math.round(dmg) + " \u26A1", w.color);
       if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
-    } else if (w.special === "multi") {
+    } else if (w.special === "multi" || w.special === "burst") {
       dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
       createExplosion(p.x, p.y, w.color, 15, false);
       addHitText(p.x, p.y, '' + dmg, w.color);
+    } else if (w.special === "vampire") {
+      dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
+      if (p.attacker.isPlayer && p.attacker.heal) p.attacker.heal(Math.round(dmg * 0.3));
+      createExplosion(p.x, p.y, w.color, 25, dmg > 30);
+      addHitText(p.x, p.y, '-' + dmg, "#ff3366");
+      if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
+    } else if (w.special === "chain") {
+      dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
+      createExplosion(p.x, p.y, w.color, 25, false);
+      addHitText(p.x, p.y, '-' + dmg, "#66ddff");
+      // chain to 2 nearby enemies
+      var chainTargets = getTargets(p.attacker);
+      var chainHits = 0;
+      for (var ci = 0; ci < chainTargets.length && chainHits < 2; ci++) {
+        var ct = chainTargets[ci];
+        if (ct === target || !ct.alive()) continue;
+        var cdx = ct.x - p.x, cdy = ct.y - p.y;
+        if (Math.sqrt(cdx*cdx + cdy*cdy) < 120) {
+          ct.takeDamage(Math.round(dmg * 0.5));
+          createExplosion(ct.x, ct.y, "#66ddff", 12, false);
+          addHitText(ct.x, ct.y, '-' + Math.round(dmg*0.5), "#66ddff");
+          chainHits++;
+        }
+      }
+      if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
+    } else if (w.special === "splash") {
+      dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
+      createExplosion(p.x, p.y, w.color, 35, true);
+      addHitText(p.x, p.y, '-' + dmg, w.color);
+      // splash damage to nearby enemies
+      var splashTargets = getTargets(p.attacker);
+      for (var si = 0; si < splashTargets.length; si++) {
+        var st = splashTargets[si];
+        if (st === target || !st.alive()) continue;
+        var sdx = st.x - p.x, sdy = st.y - p.y;
+        var sDist = Math.sqrt(sdx*sdx + sdy*sdy);
+        if (sDist < 80) {
+          var splashDmg = Math.round(dmg * (1 - sDist / 80) * 0.6);
+          st.takeDamage(splashDmg);
+          addHitText(st.x, st.y - 10, '-' + splashDmg, "#ffaa44");
+        }
+      }
+      if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
     } else {
       dmg = target.takeDamage(w.damage * (p.attacker.diffDmgMult || 1));
       createExplosion(p.x, p.y, w.color, 25, dmg > 30);
       addHitText(p.x, p.y, '-' + dmg, dmg > 30 ? "#ffdd44" : w.color);
       if (p.attacker.isPlayer) { comboCount++; comboTimer = 90; }
     }
-    projectiles.splice(i, 1);
+    var isPierce = w.special === "pierce";
+    if (!isPierce) projectiles.splice(i, 1);
     updateHP();
     if (!target.alive()) {
       killCount++;
@@ -1940,11 +1983,11 @@ function updateAI() {
         ai.aiCooldown = 35 + Math.random() * 25;
       } else {
         var diffSpread = [1.5, 1.0, 0.7];
-        var spread = (w.special === "multi" ? 60 : 25) * diffSpread[difficulty];
+        var spread = (w.special === "multi" || w.special === "burst" ? 60 : 25) * diffSpread[difficulty];
         fireProjectile(ai.x, ai.y, player.x + (Math.random() - 0.5) * spread, player.y + (Math.random() - 0.5) * spread, w, ai);
         ai.shootFlash = 8;
         ai.aiCooldown = 20 + Math.random() * 30;
-        if (w.special === "multi") ai.aiCooldown += 20;
+        if (w.special === "multi" || w.special === "burst") ai.aiCooldown += 20;
       }
     }
   }
@@ -2391,7 +2434,10 @@ function onLogin() {
   if (lm) lm.textContent = '$' + money;
   getShopData();
   updateLobbyXp();
-  if (ownedWeapons.indexOf(lobbySelectedWeapon) === -1) lobbySelectedWeapon = ownedWeapons[0] || 0;
+  // ensure loadout slots are owned
+  for (var si = 0; si < 5; si++) {
+    if (ownedWeapons.indexOf(lobbyLoadout[si]) === -1) lobbyLoadout[si] = ownedWeapons[0] || 0;
+  }
   updateLobbyWeapons();
 }
 
@@ -2416,21 +2462,23 @@ async function saveProfileStats() {
 function updateLobbyWeapons() {
   var row = document.getElementById('lobbyWeaponRow');
   if (!row) return;
-  if (!loggedInUser || ownedWeapons.length <= 1) { row.style.display = 'none'; return; }
+  if (!loggedInUser || ownedWeapons.length <= 5) { row.style.display = 'none'; return; }
   row.style.display = 'flex';
-  var html = '<span style="color:#888;font-size:10px;margin-right:4px">Weapon:</span>';
-  for (var i = 0; i < ownedWeapons.length; i++) {
-    var idx = ownedWeapons[i];
+  var html = '<span style="color:#888;font-size:10px;margin-right:4px">Slots:</span>';
+  for (var i = 0; i < 5; i++) {
+    var idx = lobbyLoadout[i];
     var w = weapons[idx];
-    var active = lobbySelectedWeapon === idx;
-    if (!w) continue;
-    html += '<button class="lw-btn' + (active?' active':'') + '" onclick="selectLobbyWeapon(' + idx + ')">' + w.name + '</button>';
+    if (!w) { html += '<button class="lw-btn" onclick="cycleLoadoutSlot(' + i + ')">EMPTY</button>'; continue; }
+    html += '<button class="lw-btn' + (i === 0?' active':'') + '" onclick="cycleLoadoutSlot(' + i + ')">' + w.name + '</button>';
   }
   row.innerHTML = html;
 }
-function selectLobbyWeapon(idx) {
-  if (ownedWeapons.indexOf(idx) === -1) return;
-  lobbySelectedWeapon = idx;
+function cycleLoadoutSlot(slot) {
+  if (!loggedInUser) return;
+  var current = lobbyLoadout[slot];
+  var idx = ownedWeapons.indexOf(current);
+  var next = ownedWeapons[(idx + 1) % ownedWeapons.length];
+  lobbyLoadout[slot] = next;
   saveShopData();
   updateLobbyWeapons();
 }
@@ -2438,9 +2486,7 @@ function updateLobbyXp() {
   var el = document.getElementById('lobbyXpSmall');
   if (el) el.textContent = 'Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
 }
-function hasWeaponRestriction() {
-  return loggedInUser && ownedWeapons.length > 1;
-}
+
 
 function updateAbilityBar() {
   var bar = document.getElementById('abilityBar');
@@ -2494,11 +2540,11 @@ var upgradeDefs = [
   { id:'damage', name:'Cannon', levels:2, cost:[1500,3000], bonus:[0.15,0.3], desc:'+{val}% damage' },
 ];
 var weaponShop = [
-  { idx:0, name:'Laser', cost:0, desc:'High precision beam' },
-  { idx:1, name:'Rocket', cost:1000, desc:'Devastating blast' },
-  { idx:2, name:'Shield', cost:1500, desc:'Block incoming fire' },
-  { idx:3, name:'EMP', cost:2000, desc:'Stuns enemies' },
-  { idx:4, name:'Minigun', cost:2500, desc:'Rapid fire' },
+  { idx:5, name:'Piercer', cost:3000, desc:'Penetrates through enemies' },
+  { idx:6, name:'Vampire', cost:4000, desc:'Heals 30% of damage dealt' },
+  { idx:7, name:'Tesla Arc', cost:5000, desc:'Chains to 2 nearby enemies' },
+  { idx:8, name:'Plasma', cost:6000, desc:'5-shot burst' },
+  { idx:9, name:'Mortar', cost:8000, desc:'Area splash damage' },
 ];
 var tankAbilities = {
   default: { name:'Shield Boost', desc:'+50 shield instantly', cooldown:300, activate:function(p){p.shield=Math.min(p.shield+50,100);} },
@@ -2510,20 +2556,20 @@ var tankAbilities = {
 var ownedTanks = ['default'];
 var selectedTankId = 'default';
 var upgradeLevels = {};
-var ownedWeapons = [0];
+var ownedWeapons = [0,1,2,3,4];
 var xp = 0;
-function getLevel(xp) { return Math.floor(xp / 100) + 1; } // weapon indices owned
-var lobbySelectedWeapon = 0;
+function getLevel(xp) { return Math.floor(xp / 100) + 1; }
+var lobbyLoadout = [0,1,2,3,4];
 var shopTab = 'tanks';
 
 function getShopData() {
   try {
     var raw = localStorage.getItem('rp_shop_' + loggedInUser);
-    if (raw) { var d = JSON.parse(raw); ownedTanks = d.ownedTanks || ['default']; selectedTankId = d.selectedTank || 'default'; upgradeLevels = d.upgradeLevels || {}; ownedWeapons = d.ownedWeapons || [0]; lobbySelectedWeapon = d.lobbySelectedWeapon || 0; xp = d.xp || 0; }
+    if (raw) { var d = JSON.parse(raw); ownedTanks = d.ownedTanks || ['default']; selectedTankId = d.selectedTank || 'default'; upgradeLevels = d.upgradeLevels || {}; ownedWeapons = d.ownedWeapons || [0,1,2,3,4]; lobbyLoadout = d.lobbyLoadout || [0,1,2,3,4]; xp = d.xp || 0; }
   } catch(e) {}
 }
 function saveShopData() {
-  try { localStorage.setItem('rp_shop_' + loggedInUser, JSON.stringify({ownedTanks:ownedTanks,selectedTank:selectedTankId,upgradeLevels:upgradeLevels,ownedWeapons:ownedWeapons,lobbySelectedWeapon:lobbySelectedWeapon,xp:xp})); } catch(e) {}
+  try { localStorage.setItem('rp_shop_' + loggedInUser, JSON.stringify({ownedTanks:ownedTanks,selectedTank:selectedTankId,upgradeLevels:upgradeLevels,ownedWeapons:ownedWeapons,lobbyLoadout:lobbyLoadout,xp:xp})); } catch(e) {}
 }
 
 function showShop() {
@@ -2665,7 +2711,12 @@ function buyWeapon(idx) {
   if (money < w.cost) return;
   money -= w.cost;
   ownedWeapons.push(idx);
-  if (lobbySelectedWeapon === 0 && ownedWeapons.length > 1) lobbySelectedWeapon = idx;
+  // assign to first loadout slot that has a basic weapon (0-4) if it's a shop weapon
+  if (idx >= 5) {
+    for (var si = 0; si < 5; si++) {
+      if (lobbyLoadout[si] < 5) { lobbyLoadout[si] = idx; break; }
+    }
+  }
   saveShopData();
   document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
   renderShopWeapons();
@@ -2688,15 +2739,16 @@ function renderShopCollection() {
   }
   if (!hasTank) html += '<div style="color:#666;font-size:10px;padding:2px 4px">None owned</div>';
 
-  html += '<div style="font-size:11px;color:#ddd;margin-top:8px;margin-bottom:4px">WEAPONS</div>';
+  html += '<div style="font-size:11px;color:#ddd;margin-top:8px;margin-bottom:4px">WEAPONS <span style="color:#666;font-weight:normal;font-size:9px">(loadout: ' + lobbyLoadout.map(function(idx){return weapons[idx]?weapons[idx].name:'?';}).join(' | ') + ')</span></div>';
   var hasWep = false;
-  for (var i = 0; i < weaponShop.length; i++) {
-    var w = weaponShop[i];
-    if (ownedWeapons.indexOf(w.idx) !== -1) {
-      hasWep = true;
-      var sel = lobbySelectedWeapon === w.idx ? ' <span style="color:#44ff88;font-size:9px">[SELECTED]</span>' : '';
-      html += '<div style="color:' + weapons[w.idx].color + ';font-size:11px;padding:2px 4px">' + w.name + sel + '</div>';
-    }
+  for (var i = 0; i < ownedWeapons.length; i++) {
+    var idx = ownedWeapons[i];
+    var w = weapons[idx];
+    if (!w) continue;
+    hasWep = true;
+    var inLoadout = lobbyLoadout.indexOf(idx) !== -1;
+    var tag = inLoadout ? ' <span style="color:#44ff88;font-size:9px">[IN SLOT ' + (lobbyLoadout.indexOf(idx) + 1) + ']</span>' : '';
+    html += '<div style="color:' + w.color + ';font-size:11px;padding:2px 4px">' + w.name + tag + '</div>';
   }
   if (!hasWep) html += '<div style="color:#666;font-size:10px;padding:2px 4px">None owned</div>';
 
