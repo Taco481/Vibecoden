@@ -186,6 +186,49 @@
   }
   .overlay button:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 0 50px rgba(74,74,255,0.6); }
 
+  .shop-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    background: rgba(5,5,20,0.95); border-radius: 12px;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    z-index: 15; overflow-y: auto; padding: 10px; box-sizing: border-box;
+  }
+  .shop-overlay.show { opacity: 1; pointer-events: all; }
+  .shop-overlay h2 { color: #ffdd44; font-size: 22px; margin: 4px 0; }
+  .shop-overlay .shop-money { color: #ffdd44; font-size: 14px; margin-bottom: 6px; }
+  .shop-overlay .shop-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+  .shop-overlay .shop-tab {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px; padding: 4px 16px; color: #888; font: 12px monospace; cursor: pointer;
+    font-family: inherit;
+  }
+  .shop-overlay .shop-tab.active { background: rgba(74,74,255,0.3); border-color: #4a4aff; color: #fff; }
+  .shop-overlay .shop-list { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 4px; }
+  .shop-overlay .shop-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px; padding: 6px 10px; gap: 6px;
+  }
+  .shop-overlay .shop-item.owned { border-color: rgba(68,255,136,0.2); }
+  .shop-overlay .shop-item.equipped { border-color: #44ff88; background: rgba(68,255,136,0.08); }
+  .shop-overlay .shop-item .si-name { color: #ddd; font-size: 12px; font-weight: bold; flex: 1; }
+  .shop-overlay .shop-item .si-desc { color: #888; font-size: 10px; }
+  .shop-overlay .shop-item .si-stats { color: #666; font-size: 9px; }
+  .shop-overlay .shop-btn {
+    background: linear-gradient(135deg, #4a4aff, #2a2acc); border: none;
+    border-radius: 4px; padding: 3px 10px; color: #fff; font: bold 10px monospace; cursor: pointer;
+    font-family: inherit; white-space: nowrap;
+  }
+  .shop-overlay .shop-btn:disabled { opacity: 0.4; cursor: default; }
+  .shop-overlay .shop-btn.equip { background: linear-gradient(135deg, #44aa44, #228822); }
+  .shop-overlay .shop-btn.owned-btn { background: linear-gradient(135deg, #666, #444); }
+  .shop-overlay .shop-close {
+    margin-top: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 6px; padding: 6px 24px; color: #ccc; font: 12px monospace; cursor: pointer;
+    font-family: inherit;
+  }
+  .shop-overlay .shop-close:hover { background: rgba(255,255,255,0.2); }
+
   .start-screen {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -471,6 +514,7 @@
           </div>
           <div class="account-info" id="accountInfo" style="display:none">
             <span id="lobbyMoneySmall" style="color:#ffdd44;font-weight:bold">$0</span>
+            <button class="acc-btn" onclick="showShop()" style="font-size:9px;padding:2px 6px;background:rgba(255,221,68,0.2)">SHOP</button>
             <button class="acc-btn" onclick="logoutAccount()" style="font-size:9px;padding:2px 6px">✕</button>
           </div>
         </div>
@@ -479,10 +523,21 @@
       <div class="lobby-footer">ROBOTPLANET v1.0</div>
     </div>
     <div class="overlay" id="gameOverlay">
-      <h1 id="resultTitle">🏆 VICTORY!</h1>
-      <p id="resultMsg"></p>
-      <p class="sub" id="resultRounds"></p>
-      <button onclick="backToLobby()">⚔️ PLAY AGAIN</button>
+      <h1 id="resultTitle">VICTORY</h1>
+      <p id="resultDesc"></p>
+      <p class="sub" id="resultSub"></p>
+      <button onclick="backToLobby()">← Back to Lobby</button>
+    </div>
+
+    <div class="shop-overlay" id="shopOverlay">
+      <h2>⚙ TANK SHOP</h2>
+      <div class="shop-money" id="shopMoney">$0</div>
+      <div class="shop-tabs">
+        <button class="shop-tab active" id="shopTabTanks" onclick="showShopTab('tanks')">Tanks</button>
+        <button class="shop-tab" id="shopTabUpgrades" onclick="showShopTab('upgrades')">Upgrades</button>
+      </div>
+      <div class="shop-list" id="shopList"></div>
+      <button class="shop-close" onclick="hideShop()">Close</button>
     </div>
   </div>
 
@@ -1371,9 +1426,12 @@ function startGameMP() {
     }
   }
   var sp = spawnPoints[myIdx % spawnPoints.length];
+  var ts = loggedInUser ? getTankStats() : { hp:200, speed:1.0, shield:0, dmg:1.0, color:'#88ccff' };
   player = new RobotArena(sorted[myIdx].name || 'Player', sp.x, sp.y, true);
-  player.maxHp = 200;
-  player.hp = 200;
+  player.maxHp = ts.hp;
+  player.hp = ts.hp;
+  player.speed = player.speed * ts.speed;
+  player.shield = ts.shield;
   player.team = myTeam;
   player.color = teamColors[myTeam % teamColors.length];
 
@@ -1433,9 +1491,14 @@ function startGame() {
   var input = document.getElementById('nameInput');
   var pName = input ? input.value.trim() || "MechWarrior" : "MechWarrior";
   if (gameMode === 'multi') { startGameMP(); return; }
+  var ts = loggedInUser ? getTankStats() : { hp:200, speed:1.0, shield:0, dmg:1.0, color:'#88ccff' };
   player = new RobotArena(pName, 150, 250, true);
-  player.maxHp = 200;
-  player.hp = 200;
+  player.maxHp = ts.hp;
+  player.hp = ts.hp;
+  player.speed = player.speed * ts.speed;
+  player.shield = ts.shield;
+  player.diffDmgMult = ts.dmg;
+  player.color = ts.color;
   enemies = [];
   var diffSpeed = [0.65, 1.0, 1.35];
   var diffHp = [80, 100, 120];
@@ -2254,6 +2317,7 @@ function onLogin() {
   if (ab) ab.style.display = 'none';
   if (ai) ai.style.display = 'flex';
   if (lm) lm.textContent = '$' + money;
+  getShopData();
 }
 
 function logoutAccount() {
@@ -2271,6 +2335,160 @@ async function saveProfileStats() {
   await supabaseClient.from('profiles').update({ money: money, kills: killCount }).eq('id', profileId);
   var s = document.getElementById('lobbyMoneySmall');
   if (s) s.textContent = '$' + money;
+}
+
+// ---- TANK SHOP ----
+var tankTypes = [
+  { id:'default', name:'Mk I Standard', cost:0, hp:200, speed:1.0, shield:0, dmgMult:1.0, color:'#88ccff', desc:'Balanced all-around tank' },
+  { id:'heavy', name:'Mk II Bunker', cost:2000, hp:350, speed:0.75, shield:0, dmgMult:1.0, color:'#ff8844', desc:'High HP, slow speed' },
+  { id:'light', name:'Mk III Raptor', cost:2000, hp:140, speed:1.4, shield:0, dmgMult:1.0, color:'#44ff88', desc:'Fast but fragile' },
+  { id:'shield', name:'Mk IV Aegis', cost:3000, hp:200, speed:0.9, shield:40, dmgMult:1.0, color:'#4488ff', desc:'Starts with shield energy' },
+  { id:'sniper', name:'Mk V Longshot', cost:3500, hp:160, speed:0.95, shield:0, dmgMult:1.2, color:'#ff44ff', desc:'+20% damage' },
+];
+var upgradeDefs = [
+  { id:'hp', name:'Armor', levels:3, cost:[500,1000,2000], bonus:[50,100,150], desc:'+{val} HP' },
+  { id:'speed', name:'Treads', levels:3, cost:[500,1000,2000], bonus:[0.15,0.25,0.4], desc:'+{val}% speed' },
+  { id:'shield', name:'Generator', levels:2, cost:[1000,2500], bonus:[30,60], desc:'+{val} shield' },
+  { id:'damage', name:'Cannon', levels:2, cost:[1500,3000], bonus:[0.15,0.3], desc:'+{val}% damage' },
+];
+var ownedTanks = ['default'];
+var selectedTankId = 'default';
+var upgradeLevels = {};
+var shopTab = 'tanks';
+
+function getShopData() {
+  try {
+    var raw = localStorage.getItem('rp_shop_' + loggedInUser);
+    if (raw) { var d = JSON.parse(raw); ownedTanks = d.ownedTanks || ['default']; selectedTankId = d.selectedTank || 'default'; upgradeLevels = d.upgradeLevels || {}; }
+  } catch(e) {}
+}
+function saveShopData() {
+  try { localStorage.setItem('rp_shop_' + loggedInUser, JSON.stringify({ownedTanks:ownedTanks,selectedTank:selectedTankId,upgradeLevels:upgradeLevels})); } catch(e) {}
+}
+
+function showShop() {
+  if (!loggedInUser) return;
+  getShopData();
+  document.getElementById('shopOverlay').classList.add('show');
+  document.getElementById('shopMoney').textContent = '$' + money;
+  shopTab = 'tanks';
+  document.getElementById('shopTabTanks').className = 'shop-tab active';
+  document.getElementById('shopTabUpgrades').className = 'shop-tab';
+  renderShopTanks();
+}
+function hideShop() { document.getElementById('shopOverlay').classList.remove('show'); }
+
+function showShopTab(tab) {
+  shopTab = tab;
+  document.getElementById('shopTabTanks').className = 'shop-tab' + (tab==='tanks'?' active':'');
+  document.getElementById('shopTabUpgrades').className = 'shop-tab' + (tab==='upgrades'?' active':'');
+  if (tab === 'tanks') renderShopTanks();
+  else renderShopUpgrades();
+}
+
+function renderShopTanks() {
+  var el = document.getElementById('shopList');
+  var html = '';
+  for (var i = 0; i < tankTypes.length; i++) {
+    var t = tankTypes[i];
+    var owned = ownedTanks.indexOf(t.id) !== -1;
+    var equipped = selectedTankId === t.id;
+    var canBuy = !owned && money >= t.cost;
+    html += '<div class="shop-item' + (owned?' owned':'') + (equipped?' equipped':'') + '">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div class="si-name" style="color:' + t.color + '">' + t.name + '</div>';
+    html += '<div class="si-desc">' + t.desc + '</div>';
+    html += '<div class="si-stats">HP ' + t.hp + ' | SPD ' + Math.round(t.speed*100) + '%' + (t.shield?' | SHIELD '+t.shield:'') + (t.dmgMult>1?' | DMG +'+Math.round((t.dmgMult-1)*100)+'%':'') + '</div>';
+    html += '</div>';
+    if (equipped) html += '<button class="shop-btn owned-btn" disabled>EQUIPPED</button>';
+    else if (owned) html += '<button class="shop-btn equip" onclick="selectTank(\'' + t.id + '\')">Equip</button>';
+    else html += '<button class="shop-btn" onclick="buyTank(\'' + t.id + '\')"' + (canBuy?'':' disabled') + '>$' + t.cost + '</button>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function renderShopUpgrades() {
+  var el = document.getElementById('shopList');
+  var tt = null;
+  for (var i = 0; i < tankTypes.length; i++) { if (tankTypes[i].id === selectedTankId) { tt = tankTypes[i]; break; } }
+  var html = '<div style="color:#888;font-size:10px;text-align:center;margin-bottom:6px">Upgrades for <span style="color:' + (tt?tt.color:'#888') + '">' + (tt?tt.name:'?') + '</span></div>';
+  for (var i = 0; i < upgradeDefs.length; i++) {
+    var u = upgradeDefs[i];
+    var key = selectedTankId + '_' + u.id;
+    var level = upgradeLevels[key] || 0;
+    var maxed = level >= u.levels;
+    var canBuy = !maxed && money >= u.cost[level];
+    var val = u.bonus[level];
+    var desc = u.desc.replace('{val}', u.id==='speed'||u.id==='damage'?Math.round(val*100):val);
+    html += '<div class="shop-item">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div class="si-name">' + u.name + ' <span style="color:#666;font-size:10px">Lv.' + (level+1) + '/' + u.levels + '</span></div>';
+    html += '<div class="si-desc">' + desc + '</div>';
+    html += '</div>';
+    if (maxed) html += '<button class="shop-btn owned-btn" disabled>MAX</button>';
+    else html += '<button class="shop-btn" onclick="buyUpgrade(\'' + u.id + '\')"' + (canBuy?'':' disabled') + '>$' + u.cost[level] + '</button>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function buyTank(id) {
+  var t = null;
+  for (var i = 0; i < tankTypes.length; i++) { if (tankTypes[i].id === id) { t = tankTypes[i]; break; } }
+  if (!t || ownedTanks.indexOf(id) !== -1) return;
+  if (money < t.cost) return;
+  money -= t.cost;
+  ownedTanks.push(id);
+  selectedTankId = id;
+  upgradeLevels = {};
+  saveShopData();
+  document.getElementById('shopMoney').textContent = '$' + money;
+  renderShopTanks();
+}
+
+function selectTank(id) {
+  if (ownedTanks.indexOf(id) === -1) return;
+  selectedTankId = id;
+  saveShopData();
+  renderShopTanks();
+}
+
+function buyUpgrade(id) {
+  var u = null;
+  for (var i = 0; i < upgradeDefs.length; i++) { if (upgradeDefs[i].id === id) { u = upgradeDefs[i]; break; } }
+  if (!u) return;
+  var key = selectedTankId + '_' + id;
+  var level = upgradeLevels[key] || 0;
+  if (level >= u.levels) return;
+  if (money < u.cost[level]) return;
+  money -= u.cost[level];
+  upgradeLevels[key] = level + 1;
+  saveShopData();
+  document.getElementById('shopMoney').textContent = '$' + money;
+  renderShopUpgrades();
+}
+
+function getTankStats() {
+  var t = null;
+  for (var i = 0; i < tankTypes.length; i++) { if (tankTypes[i].id === selectedTankId) { t = tankTypes[i]; break; } }
+  if (!t) t = tankTypes[0];
+  var hp = t.hp, speed = t.speed, shield = t.shield, dmg = t.dmgMult;
+  for (var id in upgradeLevels) {
+    if (id.indexOf(selectedTankId + '_') !== 0) continue;
+    var uid = id.substring(selectedTankId.length + 1);
+    var u = null;
+    for (var j = 0; j < upgradeDefs.length; j++) { if (upgradeDefs[j].id === uid) { u = upgradeDefs[j]; break; } }
+    if (!u) continue;
+    var lv = upgradeLevels[id];
+    for (var k = 0; k < lv; k++) {
+      if (uid === 'hp') hp += u.bonus[k];
+      else if (uid === 'speed') speed += u.bonus[k];
+      else if (uid === 'shield') shield += u.bonus[k];
+      else if (uid === 'damage') dmg += u.bonus[k];
+    }
+  }
+  return { hp: hp, speed: speed, shield: shield, dmg: dmg, color: t.color };
 }
 </script>
 </body>
