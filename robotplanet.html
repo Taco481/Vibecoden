@@ -1790,11 +1790,14 @@ function checkGameOver() {
     if (!player.alive()) {
       gameActive = false; saveProfileStats();
       setTimeout(function() {
-        document.getElementById('resultTitle').textContent = "\uD83D\uDC80 DEFEATED";
-        document.getElementById('resultTitle').className = 'lose';
-        document.getElementById('resultMsg').textContent = player.name + ' has been destroyed...';
-        document.getElementById('resultRounds').textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
-        document.getElementById('gameOverlay').classList.add('show');
+        var t = document.getElementById('resultTitle');
+        var m = document.getElementById('resultMsg');
+        var r = document.getElementById('resultRounds');
+        var o = document.getElementById('gameOverlay');
+        if (t) { t.textContent = "\uD83D\uDC80 DEFEATED"; t.className = 'lose'; }
+        if (m) m.textContent = player.name + ' has been destroyed...';
+        if (r) r.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+        if (o) o.classList.add('show');
       }, 500);
       return true;
     }
@@ -1803,15 +1806,18 @@ function checkGameOver() {
       setTimeout(function() {
         var title = document.getElementById('resultTitle');
         var msg = document.getElementById('resultMsg');
-        title.textContent = "\uD83C\uDFC6 VICTORY!";
-        title.className = 'win';
-        if (gameModeType === 'teams' && player.team !== undefined) {
-          msg.textContent = 'Team ' + player.team + ' eliminates all opponents!';
-        } else {
-          msg.textContent = player.name + ' wins the online battle!';
+        var r = document.getElementById('resultRounds');
+        var o = document.getElementById('gameOverlay');
+        if (title) { title.textContent = "\uD83C\uDFC6 VICTORY!"; title.className = 'win'; }
+        if (msg) {
+          if (gameModeType === 'teams' && player.team !== undefined) {
+            msg.textContent = 'Team ' + player.team + ' eliminates all opponents!';
+          } else {
+            msg.textContent = player.name + ' wins the online battle!';
+          }
         }
-        document.getElementById('resultRounds').textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
-        document.getElementById('gameOverlay').classList.add('show');
+        if (r) r.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+        if (o) o.classList.add('show');
       }, 500);
       return true;
     }
@@ -1824,17 +1830,24 @@ function checkGameOver() {
       var title = document.getElementById('resultTitle');
       var msg = document.getElementById('resultMsg');
       var rounds = document.getElementById('resultRounds');
-      if (player.alive()) {
-        title.textContent = "\uD83C\uDFC6 VICTORY!";
-        title.className = 'win';
-        msg.textContent = player.name + ' defeats ' + killCount + ' opponent(s)!';
-      } else {
-        title.textContent = "\uD83D\uDC80 DEFEATED";
-        title.className = 'lose';
-        msg.textContent = player.name + ' has been destroyed...';
+      if (title) {
+        if (player.alive()) {
+          title.textContent = "\uD83C\uDFC6 VICTORY!";
+          title.className = 'win';
+        } else {
+          title.textContent = "\uD83D\uDC80 DEFEATED";
+          title.className = 'lose';
+        }
       }
-      rounds.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
-      overlay.classList.add('show');
+      if (msg) {
+        if (player.alive()) {
+          msg.textContent = player.name + ' defeats ' + killCount + ' opponent(s)!';
+        } else {
+          msg.textContent = player.name + ' has been destroyed...';
+        }
+      }
+      if (rounds) rounds.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+      if (overlay) overlay.classList.add('show');
     }, 500);
     return true;
   }
@@ -2225,11 +2238,14 @@ function gameLoop() {
               if (kothZone.score[firstTeam] >= 5) {
                 gameActive = false; saveProfileStats();
                 setTimeout(function() {
-                  document.getElementById('resultTitle').textContent = "\uD83C\uDFC6 TEAM " + firstTeam + " WINS!";
-                  document.getElementById('resultTitle').className = 'win';
-                  document.getElementById('resultMsg').textContent = 'Team ' + firstTeam + ' controls the hill!';
-                  document.getElementById('resultRounds').textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
-                  document.getElementById('gameOverlay').classList.add('show');
+                  var t = document.getElementById('resultTitle');
+                  var m = document.getElementById('resultMsg');
+                  var r = document.getElementById('resultRounds');
+                  var o = document.getElementById('gameOverlay');
+                  if (t) { t.textContent = "\uD83C\uDFC6 TEAM " + firstTeam + " WINS!"; t.className = 'win'; }
+                  if (m) m.textContent = 'Team ' + firstTeam + ' controls the hill!';
+                  if (r) r.textContent = 'Battle lasted ' + Math.max(1, roundCount) + ' rounds';
+                  if (o) o.classList.add('show');
                 }, 500);
               }
             }
