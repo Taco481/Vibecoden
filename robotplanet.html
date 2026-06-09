@@ -543,6 +543,7 @@
             <button class="acc-btn acc-reg" id="registerBtn" onclick="showLoginForm()">Register</button>
           </div>
           <div class="account-info" id="accountInfo" style="display:none">
+            <span id="lobbyXpSmall" style="color:#aaffaa;font-weight:bold;font-size:10px">Lv.1</span>
             <span id="lobbyMoneySmall" style="color:#ffdd44;font-weight:bold">$0</span>
             <button class="acc-btn" onclick="showShop()" style="font-size:9px;padding:2px 6px;background:rgba(255,221,68,0.2)">SHOP</button>
             <button class="acc-btn" onclick="logoutAccount()" style="font-size:9px;padding:2px 6px">✕</button>
@@ -1755,6 +1756,8 @@ function processHits() {
     updateHP();
     if (!target.alive()) {
       killCount++;
+      xp += 15;
+      saveShopData();
       if (gameMode !== 'multi') {
         var reward = (difficulty + 1) * 1000;
         money += reward;
@@ -2335,10 +2338,10 @@ async function registerAccount() {
   initSupabase();
   if (!supabaseClient) return;
   var hash = btoa(pass);
-  var { data, error } = await supabaseClient.from('profiles').insert({ username: user, password: hash, money: 0, kills: 0 }).select().single();
+  var { data, error } = await supabaseClient.from('profiles').insert({ username: user, password: hash, money: 0, kills: 0, xp: 0 }).select().single();
   if (error) {
     if (error.code === '42P01' || error.message?.includes('does not exist')) {
-      showAccountStatus('Table does not exist. Run: CREATE TABLE profiles (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, money INTEGER DEFAULT 0, kills INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW()); in Supabase SQL Editor');
+      showAccountStatus('Table does not exist. Run: CREATE TABLE profiles (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, money INTEGER DEFAULT 0, kills INTEGER DEFAULT 0, xp INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW()); in Supabase SQL Editor');
       return;
     }
     if (error.code === '23505') { showAccountStatus('Username already taken'); return; }
@@ -2357,7 +2360,7 @@ async function loginAccount() {
   var hash = btoa(pass);
   var { data, error } = await supabaseClient.from('profiles').select('*').eq('username', user).eq('password', hash).single();
   if (error || !data) { showAccountStatus('Invalid username or password'); return; }
-  loggedInUser = user; profileId = data.id; money = data.money || 0; killCount = data.kills || 0;
+  loggedInUser = user; profileId = data.id; money = data.money || 0; killCount = data.kills || 0; xp = data.xp || 0;
   onLogin();
 }
 
@@ -2370,6 +2373,7 @@ function onLogin() {
   if (ai) ai.style.display = 'flex';
   if (lm) lm.textContent = '$' + money;
   getShopData();
+  updateLobbyXp();
   if (ownedWeapons.indexOf(lobbySelectedWeapon) === -1) lobbySelectedWeapon = ownedWeapons[0] || 0;
   updateLobbyWeapons();
 }
@@ -2386,9 +2390,10 @@ function logoutAccount() {
 
 async function saveProfileStats() {
   if (!profileId || !supabaseClient) return;
-  await supabaseClient.from('profiles').update({ money: money, kills: killCount }).eq('id', profileId);
+  await supabaseClient.from('profiles').update({ money: money, kills: killCount, xp: xp }).eq('id', profileId);
   var s = document.getElementById('lobbyMoneySmall');
   if (s) s.textContent = '$' + money;
+  updateLobbyXp();
 }
 
 function updateLobbyWeapons() {
@@ -2411,6 +2416,10 @@ function selectLobbyWeapon(idx) {
   lobbySelectedWeapon = idx;
   saveShopData();
   updateLobbyWeapons();
+}
+function updateLobbyXp() {
+  var el = document.getElementById('lobbyXpSmall');
+  if (el) el.textContent = 'Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
 }
 function hasWeaponRestriction() {
   return loggedInUser && ownedWeapons.length > 1;
@@ -2455,11 +2464,11 @@ function updateAbilityEffects() {
 
 // ---- TANK SHOP ----
 var tankTypes = [
-  { id:'default', name:'Mk I Standard', cost:0, hp:200, speed:1.0, shield:0, dmgMult:1.0, color:'#88ccff', desc:'Balanced all-around tank' },
-  { id:'heavy', name:'Mk II Bunker', cost:2000, hp:350, speed:0.75, shield:0, dmgMult:1.0, color:'#ff8844', desc:'High HP, slow speed' },
-  { id:'light', name:'Mk III Raptor', cost:2000, hp:140, speed:1.4, shield:0, dmgMult:1.0, color:'#44ff88', desc:'Fast but fragile' },
-  { id:'shield', name:'Mk IV Aegis', cost:3000, hp:200, speed:0.9, shield:40, dmgMult:1.0, color:'#4488ff', desc:'Starts with shield energy' },
-  { id:'sniper', name:'Mk V Longshot', cost:3500, hp:160, speed:0.95, shield:0, dmgMult:1.2, color:'#ff44ff', desc:'+20% damage' },
+  { id:'default', name:'Mk I Standard', cost:0, hp:200, speed:1.0, shield:0, dmgMult:1.0, color:'#88ccff', desc:'Balanced all-around tank', levelReq:1 },
+  { id:'heavy', name:'Mk II Bunker', cost:5000, hp:350, speed:0.75, shield:0, dmgMult:1.0, color:'#ff8844', desc:'High HP, slow speed', levelReq:3 },
+  { id:'light', name:'Mk III Raptor', cost:5000, hp:140, speed:1.4, shield:0, dmgMult:1.0, color:'#44ff88', desc:'Fast but fragile', levelReq:3 },
+  { id:'shield', name:'Mk IV Aegis', cost:8000, hp:200, speed:0.9, shield:40, dmgMult:1.0, color:'#4488ff', desc:'Starts with shield energy', levelReq:5 },
+  { id:'sniper', name:'Mk V Longshot', cost:10000, hp:160, speed:0.95, shield:0, dmgMult:1.2, color:'#ff44ff', desc:'+20% damage', levelReq:7 },
 ];
 var upgradeDefs = [
   { id:'hp', name:'Armor', levels:3, cost:[500,1000,2000], bonus:[50,100,150], desc:'+{val} HP' },
@@ -2469,10 +2478,10 @@ var upgradeDefs = [
 ];
 var weaponShop = [
   { idx:0, name:'Laser', cost:0, desc:'High precision' },
-  { idx:1, name:'Rocket', cost:1000, desc:'Devastating blast' },
-  { idx:2, name:'Shield', cost:1500, desc:'Block + heal' },
-  { idx:3, name:'EMP', cost:2000, desc:'Stuns enemy' },
-  { idx:4, name:'Minigun', cost:2500, desc:'Rapid fire' },
+  { idx:1, name:'Rocket', cost:3000, desc:'Devastating blast' },
+  { idx:2, name:'Shield', cost:4500, desc:'Block + heal' },
+  { idx:3, name:'EMP', cost:6000, desc:'Stuns enemy' },
+  { idx:4, name:'Minigun', cost:8000, desc:'Rapid fire' },
 ];
 var tankAbilities = {
   default: { name:'Shield Boost', desc:'+50 shield instantly', cooldown:300, activate:function(p){p.shield=Math.min(p.shield+50,100);} },
@@ -2484,25 +2493,27 @@ var tankAbilities = {
 var ownedTanks = ['default'];
 var selectedTankId = 'default';
 var upgradeLevels = {};
-var ownedWeapons = [0]; // weapon indices owned
+var ownedWeapons = [0];
+var xp = 0;
+function getLevel(xp) { return Math.floor(xp / 100) + 1; } // weapon indices owned
 var lobbySelectedWeapon = 0;
 var shopTab = 'tanks';
 
 function getShopData() {
   try {
     var raw = localStorage.getItem('rp_shop_' + loggedInUser);
-    if (raw) { var d = JSON.parse(raw); ownedTanks = d.ownedTanks || ['default']; selectedTankId = d.selectedTank || 'default'; upgradeLevels = d.upgradeLevels || {}; ownedWeapons = d.ownedWeapons || [0]; lobbySelectedWeapon = d.lobbySelectedWeapon || 0; }
+    if (raw) { var d = JSON.parse(raw); ownedTanks = d.ownedTanks || ['default']; selectedTankId = d.selectedTank || 'default'; upgradeLevels = d.upgradeLevels || {}; ownedWeapons = d.ownedWeapons || [0]; lobbySelectedWeapon = d.lobbySelectedWeapon || 0; xp = d.xp || 0; }
   } catch(e) {}
 }
 function saveShopData() {
-  try { localStorage.setItem('rp_shop_' + loggedInUser, JSON.stringify({ownedTanks:ownedTanks,selectedTank:selectedTankId,upgradeLevels:upgradeLevels,ownedWeapons:ownedWeapons,lobbySelectedWeapon:lobbySelectedWeapon})); } catch(e) {}
+  try { localStorage.setItem('rp_shop_' + loggedInUser, JSON.stringify({ownedTanks:ownedTanks,selectedTank:selectedTankId,upgradeLevels:upgradeLevels,ownedWeapons:ownedWeapons,lobbySelectedWeapon:lobbySelectedWeapon,xp:xp})); } catch(e) {}
 }
 
 function showShop() {
   if (!loggedInUser) return;
   getShopData();
   document.getElementById('shopOverlay').classList.add('show');
-  document.getElementById('shopMoney').textContent = '$' + money;
+  document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
   shopTab = 'tanks';
   document.getElementById('shopTabTanks').className = 'shop-tab active';
   document.getElementById('shopTabUpgrades').className = 'shop-tab';
@@ -2533,10 +2544,12 @@ function renderShopTanks() {
     html += '<div style="flex:1;min-width:0">';
     html += '<div class="si-name" style="color:' + t.color + '">' + t.name + '</div>';
     html += '<div class="si-desc">' + t.desc + '</div>';
-    html += '<div class="si-stats">HP ' + t.hp + ' | SPD ' + Math.round(t.speed*100) + '%' + (t.shield?' | SHIELD '+t.shield:'') + (t.dmgMult>1?' | DMG +'+Math.round((t.dmgMult-1)*100)+'%':'') + '</div>';
+    html += '<div class="si-stats">HP ' + t.hp + ' | SPD ' + Math.round(t.speed*100) + '%' + (t.shield?' | SHIELD '+t.shield:'') + (t.dmgMult>1?' | DMG +'+Math.round((t.dmgMult-1)*100)+'%':'') + ' | Lv.' + t.levelReq + '</div>';
     html += '</div>';
+    var lvl = getLevel(xp);
     if (equipped) html += '<button class="shop-btn owned-btn" disabled>EQUIPPED</button>';
     else if (owned) html += '<button class="shop-btn equip" onclick="selectTank(\'' + t.id + '\')">Equip</button>';
+    else if (lvl < t.levelReq) html += '<button class="shop-btn" disabled>Lv.' + t.levelReq + ' req</button>';
     else html += '<button class="shop-btn" onclick="buyTank(\'' + t.id + '\')"' + (canBuy?'':' disabled') + '>$' + t.cost + '</button>';
     html += '</div>';
   }
@@ -2572,13 +2585,14 @@ function buyTank(id) {
   var t = null;
   for (var i = 0; i < tankTypes.length; i++) { if (tankTypes[i].id === id) { t = tankTypes[i]; break; } }
   if (!t || ownedTanks.indexOf(id) !== -1) return;
+  if (getLevel(xp) < t.levelReq) return;
   if (money < t.cost) return;
   money -= t.cost;
   ownedTanks.push(id);
   selectedTankId = id;
   upgradeLevels = {};
   saveShopData();
-  document.getElementById('shopMoney').textContent = '$' + money;
+  document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
   renderShopTanks();
 }
 
@@ -2600,7 +2614,7 @@ function buyUpgrade(id) {
   money -= u.cost[level];
   upgradeLevels[key] = level + 1;
   saveShopData();
-  document.getElementById('shopMoney').textContent = '$' + money;
+  document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
   renderShopUpgrades();
 }
 
@@ -2633,7 +2647,7 @@ function buyWeapon(idx) {
   ownedWeapons.push(idx);
   if (lobbySelectedWeapon === 0 && ownedWeapons.length > 1) lobbySelectedWeapon = idx;
   saveShopData();
-  document.getElementById('shopMoney').textContent = '$' + money;
+  document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
   renderShopWeapons();
   updateLobbyWeapons();
 }
