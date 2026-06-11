@@ -1090,7 +1090,7 @@ function backToLobby() {
   document.getElementById('startBtn').style.display = 'inline-block';
   setGameMode('single');
   var s = document.getElementById('lobbyMoneySmall');
-  if (s && loggedInUser) s.textContent = '$' + money;
+  if (s) s.textContent = '$' + money;
 }
 
 function getEnemyPositions(count) {
@@ -1453,7 +1453,7 @@ function startGameMP() {
 
   projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
   selectedWeapon = 0; gameActive = true; canShoot = true;
-  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0; money = 0;
+  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0;
   screenShake.intensity = 0;
 
   // Init KOTH
@@ -1515,7 +1515,7 @@ function startGame() {
   }
   projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
   selectedWeapon = 0; gameActive = true; canShoot = true;
-  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0; money = 0;
+  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0;
   screenShake.intensity = 0;
   document.getElementById('startScreen').style.display = 'none';
   // Show/hide touch controls
@@ -1757,6 +1757,7 @@ function processHits() {
         money += reward;
         addHitText(target.x, target.y - 30, '+' + reward + '$', '#ffdd44');
       }
+      updateHP();
       createExplosion(target.x, target.y, "#ff8800", 60, true);
       setTimeout(function() { createExplosion(target.x, target.y, "#ff4400", 40, true); }, 100);
       setTimeout(function() { createExplosion(target.x, target.y, "#ffdd00", 30, true); }, 200);
@@ -2367,10 +2368,14 @@ async function registerAccount() {
   var { data, error } = await supabaseClient.from('profiles').insert({ username: user, password: hash, money: 0, kills: 0, xp: 0 }).select().single();
   if (error) {
     if (error.code === '42P01' || error.message?.includes('does not exist')) {
-      showAccountStatus('Table does not exist. Run: CREATE TABLE profiles (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, money INTEGER DEFAULT 0, kills INTEGER DEFAULT 0, xp INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW()); in Supabase SQL Editor');
+      showAccountStatus('Missing table. Run in Supabase SQL Editor: CREATE TABLE profiles (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, money INTEGER DEFAULT 0, kills INTEGER DEFAULT 0, xp INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW());');
       return;
     }
     if (error.code === '23505') { showAccountStatus('Username already taken'); return; }
+    if (error.message?.includes('schema cache') || error.message?.includes('xp')) {
+      showAccountStatus('Missing xp column. Run in Supabase SQL Editor: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0;');
+      return;
+    }
     showAccountStatus('Error: ' + error.message); return;
   }
   loggedInUser = user; profileId = data.id;
@@ -2440,10 +2445,10 @@ async function tryAutoLogin() {
 }
 
 async function saveProfileStats() {
-  if (!profileId || !supabaseClient) return;
-  await supabaseClient.from('profiles').update({ money: money, kills: killCount, xp: xp }).eq('id', profileId);
   var s = document.getElementById('lobbyMoneySmall');
   if (s) s.textContent = '$' + money;
+  if (!profileId || !supabaseClient) return;
+  await supabaseClient.from('profiles').update({ money: money, kills: killCount, xp: xp }).eq('id', profileId);
   updateLobbyXp();
 }
 
@@ -2572,7 +2577,11 @@ function showShop() {
   document.getElementById('shopTabCollection').className = 'shop-tab';
   renderShopTanks();
 }
-function hideShop() { document.getElementById('shopOverlay').classList.remove('show'); }
+function hideShop() {
+  document.getElementById('shopOverlay').classList.remove('show');
+  var lm = document.getElementById('lobbyMoneySmall');
+  if (lm) lm.textContent = '$' + money;
+}
 
 function showShopTab(tab) {
   shopTab = tab;
@@ -2644,7 +2653,6 @@ function buyTank(id) {
   money -= t.cost;
   ownedTanks.push(id);
   selectedTankId = id;
-  upgradeLevels = {};
   saveShopData();
   document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
   renderShopTanks();

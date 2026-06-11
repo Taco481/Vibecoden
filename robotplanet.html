@@ -392,18 +392,18 @@
   .mp-status { font-size: 13px; color: #8888cc; margin: 8px 0; text-align: center; }
 
   .combo-display {
-    position: absolute; top: 10px; right: 15px;
-    font-size: 24px; font-weight: bold; color: #ffdd44;
-    text-shadow: 0 0 20px rgba(255,221,68,0.5);
+    position: absolute; top: 32px; right: 15px;
+    font-size: 16px; font-weight: bold; color: #ffdd44;
+    text-shadow: 0 0 15px rgba(255,221,68,0.3);
     opacity: 0; transition: opacity 0.3s; z-index: 2; pointer-events: none;
   }
   .combo-display.show { opacity: 1; }
 
   .money-display {
-    position: absolute; top: 10px; left: 15px;
-    font-size: 20px; font-weight: bold; color: #ffdd44;
-    text-shadow: 0 0 15px rgba(255,221,68,0.4);
-    z-index: 2; pointer-events: none; font-family: monospace;
+    position: absolute; top: 10px; right: 15px;
+    font-size: 22px; font-weight: bold; color: #ffdd44;
+    text-shadow: 0 0 20px rgba(255,221,68,0.6);
+    z-index: 3; pointer-events: none; font-family: monospace;
   }
 
   #errorConsole {
@@ -471,11 +471,15 @@
 
         <div id="singleOptions" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:8px">
           <div class="lobby-row">
+            <span class="label">Money</span>
+            <span id="lobbyMoney" style="color:#ffdd44;font-weight:bold;font-size:13px">$0</span>
+          </div>
+          <div class="lobby-row">
             <span class="label">Opponents</span>
             <div class="btn-group">
-              <button class="enemy-btn active" onclick="setEnemyCount(1)">1</button>
+              <button class="enemy-btn" onclick="setEnemyCount(1)">1</button>
               <button class="enemy-btn" onclick="setEnemyCount(2)">2</button>
-              <button class="enemy-btn" onclick="setEnemyCount(3)">3</button>
+              <button class="enemy-btn active" onclick="setEnemyCount(3)">3</button>
             </div>
           </div>
           <div class="lobby-row">
@@ -544,7 +548,6 @@
           </div>
           <div class="account-info" id="accountInfo" style="display:none">
             <span id="lobbyXpSmall" style="color:#aaffaa;font-weight:bold;font-size:10px">Lv.1</span>
-            <span id="lobbyMoneySmall" style="color:#ffdd44;font-weight:bold">$0</span>
             <button class="acc-btn" onclick="showShop()" style="font-size:9px;padding:2px 6px;background:rgba(255,221,68,0.2)">SHOP</button>
             <button class="acc-btn" onclick="logoutAccount()" style="font-size:9px;padding:2px 6px">✕</button>
           </div>
@@ -642,7 +645,7 @@ var projectiles = [], explosions = [], particles = [], sparks = [], hitTexts = [
 var keys = {};
 var selectedWeapon = 0, gameActive = false, canShoot = true;
 var shootCooldown = 0, screenShake = { x: 0, y: 0, intensity: 0 };
-var enemyCount = 1, money = 0;
+var enemyCount = 3, money = 0;
 var controlMode = 'kbm';
 var joystick = { active: false, centerX: 0, centerY: 0, dx: 0, dy: 0, dist: 0, touchId: -1 };
 var aimActive = false, aimDragged = false, aimX = 0, aimY = 0, aimTouchId = -1;
@@ -1129,7 +1132,7 @@ function backToLobby() {
   }
   roomCode = null; mpOpponents = {}; playerId = null; isHost = false; mpPlayerList = [];
   mpDisconnectTimer = 0;
-  gameActive = false;
+  gameActive = false; updateLobbyMoney();
   document.getElementById('gameOverlay').classList.remove('show');
   document.getElementById('startScreen').style.display = 'flex';
   document.getElementById('multiOptions').style.display = 'none';
@@ -1139,8 +1142,6 @@ function backToLobby() {
   document.getElementById('leaveRoomBtn').style.display = 'none';
   document.getElementById('startBtn').style.display = 'inline-block';
   setGameMode('single');
-  var s = document.getElementById('lobbyMoneySmall');
-  if (s && loggedInUser) s.textContent = '$' + money;
 }
 
 function getEnemyPositions(count) {
@@ -1294,6 +1295,7 @@ class RobotArena {
 
     var s = this.w;
     var sway = Math.sin(this.moveSway * 3) * 1.5;
+    var tankId = this.tankId || 'default';
 
     // Shadow
     ctx.fillStyle = "rgba(0,0,0,0.3)";
@@ -1303,45 +1305,146 @@ class RobotArena {
     // BODY
     ctx.save();
     ctx.rotate(this.bodyAngle);
-    ctx.fillStyle = "#445566";
     ctx.shadowBlur = 0;
-    ctx.fillRect(-s/2 - 3, -s/3 + sway, 7, s * 0.68);
-    ctx.fillRect(s/2 - 4, -s/3 + sway, 7, s * 0.68);
-    ctx.fillStyle = "#556677";
-    for (var i = 0; i < 4; i++) {
-      var ty = -s/3 + 5 + i * (s * 0.68 / 4) + sway;
-      ctx.fillRect(-s/2 - 1, ty, 4, 5);
-      ctx.fillRect(s/2 - 3, ty, 4, 5);
-    }
-    var bodyGrad = ctx.createLinearGradient(-s/2, 0, s/2, 0);
-    if (this.isPlayer) {
-      bodyGrad.addColorStop(0, "#1a66aa"); bodyGrad.addColorStop(0.3, "#3388dd");
-      bodyGrad.addColorStop(0.7, "#3388dd"); bodyGrad.addColorStop(1, "#1a66aa");
+
+    var bw, bh, bx, by;
+    if (tankId === 'heavy') {
+      bw = s * 1.35; bh = s * 0.7;
+    } else if (tankId === 'light') {
+      bw = s * 0.75; bh = s * 0.5;
+    } else if (tankId === 'shield') {
+      bw = s * 1.05; bh = s * 0.58;
+    } else if (tankId === 'sniper') {
+      bw = s * 0.75; bh = s * 0.55;
     } else {
-      bodyGrad.addColorStop(0, "#aa2222"); bodyGrad.addColorStop(0.3, "#dd4444");
-      bodyGrad.addColorStop(0.7, "#dd4444"); bodyGrad.addColorStop(1, "#aa2222");
+      bw = s; bh = s * 0.62;
     }
-    ctx.fillStyle = bodyGrad;
-    ctx.beginPath(); ctx.roundRect(-s/2 + 4, -s/3 + sway, s - 8, s * 0.62, 4);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.15)";
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(-s/2 + 8, -s/4 + sway); ctx.lineTo(s/2 - 8, -s/4 + sway);
-    ctx.stroke();
-    ctx.fillStyle = "rgba(255,255,255,0.1)";
-    ctx.fillRect(-s/2 + 6, -s/3 + 2 + sway, s - 12, 5);
+    bx = -bw/2; by = -bh/2 + sway;
+
+    // Tracks (for heavy wider, for light shorter)
+    if (tankId !== 'light') {
+      var trackW = tankId === 'heavy' ? 8 : 6;
+      var trackH = tankId === 'heavy' ? bh * 1.1 : bh * 0.9;
+      ctx.fillStyle = "#445566";
+      ctx.fillRect(-bw/2 - trackW/2, -trackH/2 + sway, trackW, trackH);
+      ctx.fillRect(bw/2 - trackW/2, -trackH/2 + sway, trackW, trackH);
+      ctx.fillStyle = "#556677";
+      for (var ti = 0; ti < 4; ti++) {
+        var ty = -trackH/2 + 4 + ti * (trackH / 4) + sway;
+        ctx.fillRect(-bw/2 - trackW/2 + 1, ty, trackW - 2, 3);
+        ctx.fillRect(bw/2 - trackW/2 + 1, ty, trackW - 2, 3);
+      }
+    }
+
+    // Body gradient (per tank type)
+    var isEnemy = !this.isPlayer;
+    if (tankId === 'heavy') {
+      var g = ctx.createLinearGradient(-bw/2, 0, bw/2, 0);
+      if (isEnemy) { g.addColorStop(0,"#884422"); g.addColorStop(0.3,"#aa6633"); g.addColorStop(0.7,"#aa6633"); g.addColorStop(1,"#884422"); }
+      else { g.addColorStop(0,"#4a3a2a"); g.addColorStop(0.3,"#7a5a3a"); g.addColorStop(0.7,"#7a5a3a"); g.addColorStop(1,"#4a3a2a"); }
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 4); ctx.fill();
+      // Armor plates
+      ctx.fillStyle = isEnemy ? "rgba(200,150,80,0.2)" : "rgba(180,140,80,0.2)";
+      ctx.fillRect(bx + 6, by + 6, bw - 12, 5);
+      ctx.fillRect(bx + 6, by + bh - 11, bw - 12, 5);
+      ctx.strokeStyle = "rgba(255,255,255,0.1)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx + 2, by + 2, bw - 4, bh - 4);
+    } else if (tankId === 'light') {
+      var g = ctx.createLinearGradient(-bw/2, 0, bw/2, 0);
+      if (isEnemy) { g.addColorStop(0,"#228844"); g.addColorStop(0.3,"#44aa66"); g.addColorStop(0.7,"#44aa66"); g.addColorStop(1,"#228844"); }
+      else { g.addColorStop(0,"#1a7744"); g.addColorStop(0.3,"#33cc66"); g.addColorStop(0.7,"#33cc66"); g.addColorStop(1,"#1a7744"); }
+      ctx.fillStyle = g;
+      // Angular body (hexagonal-ish)
+      ctx.beginPath();
+      ctx.moveTo(bx + bw * 0.5, by);
+      ctx.lineTo(bx + bw * 0.9, by + bh * 0.3);
+      ctx.lineTo(bx + bw * 0.9, by + bh * 0.7);
+      ctx.lineTo(bx + bw * 0.5, by + bh);
+      ctx.lineTo(bx + bw * 0.1, by + bh * 0.7);
+      ctx.lineTo(bx + bw * 0.1, by + bh * 0.3);
+      ctx.closePath(); ctx.fill();
+      // Fins
+      ctx.fillStyle = isEnemy ? "rgba(50,200,80,0.25)" : "rgba(50,255,100,0.25)";
+      ctx.beginPath(); ctx.moveTo(bx - 3, by + bh * 0.2); ctx.lineTo(bx - 10, by + bh * 0.5); ctx.lineTo(bx - 3, by + bh * 0.8); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(bw/2 + 3, by + bh * 0.2); ctx.lineTo(bw/2 + 10, by + bh * 0.5); ctx.lineTo(bw/2 + 3, by + bh * 0.8); ctx.fill();
+    } else if (tankId === 'shield') {
+      var g = ctx.createLinearGradient(-bw/2, 0, bw/2, 0);
+      if (isEnemy) { g.addColorStop(0,"#2266aa"); g.addColorStop(0.3,"#4488cc"); g.addColorStop(0.7,"#4488cc"); g.addColorStop(1,"#2266aa"); }
+      else { g.addColorStop(0,"#1a55aa"); g.addColorStop(0.3,"#4488ff"); g.addColorStop(0.7,"#4488ff"); g.addColorStop(1,"#1a55aa"); }
+      ctx.fillStyle = g;
+      // Hexagonal body
+      ctx.beginPath();
+      var hw = bw * 0.5, hh = bh * 0.5;
+      for (var hi = 0; hi < 6; hi++) {
+        var angle = Math.PI / 3 * hi - Math.PI / 6;
+        var px = Math.cos(angle) * hw;
+        var py = Math.sin(angle) * hh + sway;
+        hi === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill();
+      // Inner shield glow
+      ctx.fillStyle = isEnemy ? "rgba(68,136,255,0.12)" : "rgba(100,200,255,0.12)";
+      ctx.beginPath();
+      for (var hi2 = 0; hi2 < 6; hi2++) {
+        var a2 = Math.PI / 3 * hi2 - Math.PI / 6;
+        var px2 = Math.cos(a2) * hw * 0.6;
+        var py2 = Math.sin(a2) * hh * 0.6 + sway;
+        hi2 === 0 ? ctx.moveTo(px2, py2) : ctx.lineTo(px2, py2);
+      }
+      ctx.closePath(); ctx.fill();
+    } else if (tankId === 'sniper') {
+      var g = ctx.createLinearGradient(-bw/2, 0, bw/2, 0);
+      if (isEnemy) { g.addColorStop(0,"#8822aa"); g.addColorStop(0.3,"#aa44cc"); g.addColorStop(0.7,"#aa44cc"); g.addColorStop(1,"#8822aa"); }
+      else { g.addColorStop(0,"#7722aa"); g.addColorStop(0.3,"#aa44ff"); g.addColorStop(0.7,"#aa44ff"); g.addColorStop(1,"#7722aa"); }
+      ctx.fillStyle = g;
+      // Narrow elongated body with angled front
+      ctx.beginPath();
+      ctx.moveTo(bx + bw * 0.4, by);
+      ctx.lineTo(bx + bw, by + 4);
+      ctx.lineTo(bx + bw, by + bh - 4);
+      ctx.lineTo(bx + bw * 0.4, by + bh);
+      ctx.lineTo(bx + 2, by + bh * 0.7);
+      ctx.lineTo(bx + 2, by + bh * 0.3);
+      ctx.closePath(); ctx.fill();
+      // Sensor strip
+      ctx.fillStyle = isEnemy ? "rgba(200,100,255,0.2)" : "rgba(200,100,255,0.2)";
+      ctx.fillRect(bx + bw * 0.5, by + bh * 0.35, bw * 0.3, bh * 0.3);
+    } else {
+      var bodyGrad = ctx.createLinearGradient(-bw/2, 0, bw/2, 0);
+      if (isEnemy) {
+        bodyGrad.addColorStop(0, "#aa2222"); bodyGrad.addColorStop(0.3, "#dd4444");
+        bodyGrad.addColorStop(0.7, "#dd4444"); bodyGrad.addColorStop(1, "#aa2222");
+      } else {
+        bodyGrad.addColorStop(0, "#1a66aa"); bodyGrad.addColorStop(0.3, "#3388dd");
+        bodyGrad.addColorStop(0.7, "#3388dd"); bodyGrad.addColorStop(1, "#1a66aa");
+      }
+      ctx.fillStyle = bodyGrad;
+      ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 4); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.15)";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(bx + 8, by + 4); ctx.lineTo(bw/2 - 8, by + 4);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.1)";
+      ctx.fillRect(bx + 6, by + 2, bw - 12, 5);
+    }
 
     // Exhaust smoke
     if (this.isPlayer && (this.lastMx !== 0 || this.lastMy !== 0)) {
       if (Math.random() < 0.3) {
         var rearAngle = this.bodyAngle + Math.PI;
+        var exhX = this.x + Math.cos(rearAngle) * s/3;
+        var exhY = this.y + Math.sin(rearAngle) * s/3 + sway;
+        if (tankId === 'heavy') { exhX += Math.cos(rearAngle) * 6; }
+        if (tankId === 'light') { exhX += Math.cos(rearAngle) * 0; }
         particles.push({
-          x: this.x + Math.cos(rearAngle) * s/3,
-          y: this.y + Math.sin(rearAngle) * s/3 + sway,
+          x: exhX, y: exhY,
           vx: Math.cos(rearAngle) * (0.5 + Math.random()) + (Math.random() - 0.5) * 0.3,
           vy: Math.sin(rearAngle) * (0.5 + Math.random()) + (Math.random() - 0.5) * 0.3,
-          life: 20 + Math.random() * 15, maxLife: 35,
-          color: "#888899", size: 3 + Math.random() * 4, type: "smoke",
+          life: tankId === 'heavy' ? 25 + Math.random() * 15 : tankId === 'light' ? 15 + Math.random() * 10 : 20 + Math.random() * 15,
+          maxLife: tankId === 'heavy' ? 40 : tankId === 'light' ? 25 : 35,
+          color: tankId === 'heavy' ? "#887766" : "#888899", size: tankId === 'heavy' ? 4 + Math.random() * 5 : tankId === 'light' ? 2 + Math.random() * 3 : 3 + Math.random() * 4, type: "smoke",
         });
       }
     }
@@ -1350,24 +1453,62 @@ class RobotArena {
     // TURRET
     ctx.save();
     ctx.rotate(this.turretAngle);
-    var turretR = s/4.2;
-    ctx.fillStyle = this.isPlayer ? "#2277cc" : "#cc3333";
+    var turretR, barrelLen, turretCol, barrelCol;
+    if (tankId === 'heavy') {
+      turretR = s/3.5; barrelLen = s/2 + 4;
+      turretCol = isEnemy ? "#994422" : "#6a4a2a";
+      barrelCol = isEnemy ? "#883322" : "#5a3a1a";
+    } else if (tankId === 'light') {
+      turretR = s/5; barrelLen = s/2 + 14;
+      turretCol = isEnemy ? "#33aa55" : "#22cc55";
+      barrelCol = isEnemy ? "#228844" : "#1aaa44";
+    } else if (tankId === 'shield') {
+      turretR = s/4.5; barrelLen = s/2 + 6;
+      turretCol = isEnemy ? "#3377cc" : "#3388ff";
+      barrelCol = isEnemy ? "#2266aa" : "#2277ee";
+    } else if (tankId === 'sniper') {
+      turretR = s/5; barrelLen = s/2 + 20;
+      turretCol = isEnemy ? "#9933cc" : "#9933ff";
+      barrelCol = isEnemy ? "#7722aa" : "#7722cc";
+    } else {
+      turretR = s/4.2; barrelLen = s/2 + 8;
+      turretCol = isEnemy ? "#cc3333" : "#2277cc";
+      barrelCol = isEnemy ? "#aa2828" : "#1a5caa";
+    }
+    ctx.fillStyle = turretCol;
     ctx.beginPath(); ctx.arc(0, 0, turretR, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(0, 0, turretR, 0, Math.PI * 2); ctx.stroke();
     ctx.fillStyle = "rgba(255,255,255,0.12)";
     ctx.beginPath(); ctx.arc(0, -2, turretR * 0.45, 0, Math.PI * 2); ctx.fill();
 
-    var barrelLen = s/2 + 8;
-    ctx.strokeStyle = this.isPlayer ? "#1a5caa" : "#aa2828";
-    ctx.lineWidth = 6; ctx.lineCap = "round";
+    // Scope detail on sniper
+    if (tankId === 'sniper') {
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.beginPath(); ctx.arc(0, -turretR * 0.7, turretR * 0.35, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-turretR * 0.2, -turretR * 0.7); ctx.lineTo(turretR * 0.2, -turretR * 0.7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -turretR * 1.0); ctx.lineTo(0, -turretR * 0.4); ctx.stroke();
+    }
+
+    var barW = tankId === 'heavy' ? 8 : tankId === 'sniper' ? 4 : 6;
+    ctx.strokeStyle = barrelCol;
+    ctx.lineWidth = barW; ctx.lineCap = "round";
     ctx.shadowColor = this.shootFlash > 0 ? "#ffdd44" : "transparent";
     ctx.shadowBlur = this.shootFlash > 0 ? 20 : 0;
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(barrelLen, 0); ctx.stroke();
     ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(2, -2); ctx.lineTo(barrelLen - 2, -2); ctx.stroke();
-    ctx.fillStyle = "#222233";
-    ctx.fillRect(barrelLen - 4, -4, 6, 7);
+    ctx.beginPath(); ctx.moveTo(2, -barW/4); ctx.lineTo(barrelLen - 2, -barW/4); ctx.stroke();
+    ctx.fillStyle = tankId === 'sniper' ? "#444" : "#222233";
+    ctx.fillRect(barrelLen - (tankId === 'sniper' ? 6 : 4), -barW/2, tankId === 'sniper' ? 8 : 6, barW);
+
+    // Heavy barrel shroud
+    if (tankId === 'heavy') {
+      ctx.strokeStyle = "rgba(200,200,200,0.1)";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(barrelLen * 0.3, -5); ctx.lineTo(barrelLen * 0.3, 5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(barrelLen * 0.6, -5); ctx.lineTo(barrelLen * 0.6, 5); ctx.stroke();
+    }
 
     if (this.shootFlash > 0) {
       var intensity = this.shootFlash / 8;
@@ -1479,6 +1620,7 @@ function startGameMP() {
   player.shield = ts.shield;
   player.team = myTeam;
   player.color = teamColors[myTeam % teamColors.length];
+  player.tankId = selectedTankId;
 
   // Create opponents for all other players
   enemies = [];
@@ -1503,7 +1645,7 @@ function startGameMP() {
 
   projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
   selectedWeapon = 0; gameActive = true; canShoot = true;
-  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0; money = 0;
+  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0;
   screenShake.intensity = 0;
 
   // Init KOTH
@@ -1532,7 +1674,17 @@ function startGameMP() {
   upsertState();
 }
 
+function loadMoney() { try { var m = localStorage.getItem('rp_money'); if (m !== null) money = parseInt(m) || 0; } catch(e) {} }
+function saveMoney() { try { localStorage.setItem('rp_money', money); } catch(e) {} }
+function updateLobbyMoney() { var el = document.getElementById('lobbyMoney'); if (el) el.textContent = '$' + money; }
+setInterval(function(){
+  updateLobbyMoney();
+  var e=document.getElementById('moneyDisplay');
+  if(e) e.textContent = '$' + money + (localStorage.getItem('rp_money') ? ' | saved=$' + localStorage.getItem('rp_money') : '');
+}, 500);
+
 function startGame() {
+  loadMoney(); updateLobbyMoney();
   var input = document.getElementById('nameInput');
   var pName = input ? input.value.trim() || "MechWarrior" : "MechWarrior";
   if (gameMode === 'multi') { startGameMP(); return; }
@@ -1544,6 +1696,7 @@ function startGame() {
   player.shield = ts.shield;
   player.diffDmgMult = ts.dmg;
   player.color = ts.color;
+  player.tankId = selectedTankId;
   enemies = [];
   var diffSpeed = [0.65, 1.0, 1.35];
   var diffHp = [80, 100, 120];
@@ -1565,7 +1718,7 @@ function startGame() {
   }
   projectiles = []; explosions = []; particles = []; sparks = []; hitTexts = [];
   selectedWeapon = 0; gameActive = true; canShoot = true;
-  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0; money = 0;
+  shootCooldown = 0; comboCount = 0; comboTimer = 0; roundCount = 0; killCount = 0;
   screenShake.intensity = 0;
   document.getElementById('startScreen').style.display = 'none';
   // Show/hide touch controls
@@ -1801,12 +1954,14 @@ function processHits() {
     if (!target.alive()) {
       killCount++;
       xp += 15;
-      saveShopData();
       if (gameMode !== 'multi') {
         var reward = (difficulty + 1) * 1000;
         money += reward;
         addHitText(target.x, target.y - 30, '+' + reward + '$', '#ffdd44');
+        updateLobbyMoney();
       }
+      saveMoney();
+      updateHP();
       createExplosion(target.x, target.y, "#ff8800", 60, true);
       setTimeout(function() { createExplosion(target.x, target.y, "#ff4400", 40, true); }, 100);
       setTimeout(function() { createExplosion(target.x, target.y, "#ffdd00", 30, true); }, 200);
@@ -1868,7 +2023,7 @@ function checkGameOver() {
     return false;
   }
   if (!player.alive() || allEnemiesDead()) {
-    gameActive = false; saveProfileStats();
+    gameActive = false; saveProfileStats(); saveMoney(); updateLobbyMoney();
     setTimeout(function() {
       var overlay = document.getElementById('gameOverlay');
       var title = document.getElementById('resultTitle');
@@ -2013,6 +2168,11 @@ function updateProjectiles() {
 
 function drawHUD() {
   if (!gameActive || !player) return;
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#ffdd44'; ctx.textAlign = 'right'; ctx.font = 'bold 18px monospace';
+  ctx.shadowColor = '#ffdd44'; ctx.shadowBlur = 15;
+  ctx.fillText('$' + money, W - 15, 22);
+  ctx.shadowBlur = 0;
   var pw = weapons[selectedWeapon];
   if (pw) {
     ctx.fillStyle = pw.color; ctx.shadowColor = pw.color; ctx.shadowBlur = 8;
@@ -2417,10 +2577,14 @@ async function registerAccount() {
   var { data, error } = await supabaseClient.from('profiles').insert({ username: user, password: hash, money: 0, kills: 0, xp: 0 }).select().single();
   if (error) {
     if (error.code === '42P01' || error.message?.includes('does not exist')) {
-      showAccountStatus('Table does not exist. Run: CREATE TABLE profiles (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, money INTEGER DEFAULT 0, kills INTEGER DEFAULT 0, xp INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW()); in Supabase SQL Editor');
+      showAccountStatus('Missing table. Run in Supabase SQL Editor: CREATE TABLE profiles (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, money INTEGER DEFAULT 0, kills INTEGER DEFAULT 0, xp INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW());');
       return;
     }
     if (error.code === '23505') { showAccountStatus('Username already taken'); return; }
+    if (error.message?.includes('schema cache') || error.message?.includes('xp')) {
+      showAccountStatus('Missing xp column. Run in Supabase SQL Editor: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0;');
+      return;
+    }
     showAccountStatus('Error: ' + error.message); return;
   }
   loggedInUser = user; profileId = data.id;
@@ -2446,54 +2610,20 @@ function onLogin() {
   hideLoginForm();
   var ab = document.getElementById('accountBtns');
   var ai = document.getElementById('accountInfo');
-  var lm = document.getElementById('lobbyMoneySmall');
   if (ab) ab.style.display = 'none';
   if (ai) ai.style.display = 'flex';
-  if (lm) lm.textContent = '$' + money;
   getShopData();
   updateLobbyXp();
-  // ensure loadout slots are owned
   for (var si = 0; si < 5; si++) {
     if (ownedWeapons.indexOf(lobbyLoadout[si]) === -1) lobbyLoadout[si] = ownedWeapons[0] || 0;
   }
   updateLobbyWeapons();
-}
-
-function logoutAccount() {
-  loggedInUser = null; profileId = null;
-  try { localStorage.removeItem('rp_remember'); } catch(e) {}
-  var ai = document.getElementById('accountInfo');
-  var ab = document.getElementById('accountBtns');
-  var mel = document.getElementById('moneyDisplay');
-  if (ai) ai.style.display = 'none';
-  if (ab) ab.style.display = 'flex';
-  if (mel) mel.textContent = '$0';
-}
-
-function rememberDevice(user, hash) {
-  try { localStorage.setItem('rp_remember', JSON.stringify({user:user, hash:hash})); } catch(e) {}
-}
-
-async function tryAutoLogin() {
-  try {
-    var raw = localStorage.getItem('rp_remember');
-    if (!raw) return;
-    var d = JSON.parse(raw);
-    if (!d.user || !d.hash) return;
-    initSupabase();
-    if (!supabaseClient) return;
-    var { data, error } = await supabaseClient.from('profiles').select('*').eq('username', d.user).eq('password', d.hash).single();
-    if (error || !data) { try { localStorage.removeItem('rp_remember'); } catch(e) {} return; }
-    loggedInUser = d.user; profileId = data.id; money = data.money || 0; killCount = data.kills || 0; xp = data.xp || 0;
-    onLogin();
-  } catch(e) { try { localStorage.removeItem('rp_remember'); } catch(e2) {} }
+  updateAbilityBar();
 }
 
 async function saveProfileStats() {
   if (!profileId || !supabaseClient) return;
   await supabaseClient.from('profiles').update({ money: money, kills: killCount, xp: xp }).eq('id', profileId);
-  var s = document.getElementById('lobbyMoneySmall');
-  if (s) s.textContent = '$' + money;
   updateLobbyXp();
 }
 
@@ -2607,12 +2737,13 @@ function getShopData() {
   } catch(e) {}
 }
 function saveShopData() {
-  try { localStorage.setItem('rp_shop_' + loggedInUser, JSON.stringify({ownedTanks:ownedTanks,selectedTank:selectedTankId,upgradeLevels:upgradeLevels,ownedWeapons:ownedWeapons,lobbyLoadout:lobbyLoadout,xp:xp})); } catch(e) {}
+  try { localStorage.setItem('rp_shop_' + loggedInUser, JSON.stringify({ownedTanks:ownedTanks,selectedTank:selectedTankId,upgradeLevels:upgradeLevels,ownedWeapons:ownedWeapons,lobbyLoadout:lobbyLoadout,xp:xp,money:money})); } catch(e) {}
+  saveMoney();
 }
 
 function showShop() {
   if (!loggedInUser) return;
-  getShopData();
+  saveMoney(); getShopData(); loadMoney();
   document.getElementById('shopOverlay').classList.add('show');
   document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
   shopTab = 'tanks';
@@ -2622,7 +2753,9 @@ function showShop() {
   document.getElementById('shopTabCollection').className = 'shop-tab';
   renderShopTanks();
 }
-function hideShop() { document.getElementById('shopOverlay').classList.remove('show'); }
+function hideShop() {
+  document.getElementById('shopOverlay').classList.remove('show');
+}
 
 function showShopTab(tab) {
   shopTab = tab;
@@ -2694,7 +2827,6 @@ function buyTank(id) {
   money -= t.cost;
   ownedTanks.push(id);
   selectedTankId = id;
-  upgradeLevels = {};
   saveShopData();
   document.getElementById('shopMoney').textContent = '$' + money + '  |  Lv.' + getLevel(xp) + ' (' + xp + 'XP)';
   renderShopTanks();
@@ -2829,6 +2961,7 @@ function getTankStats() {
   }
   return { hp: hp, speed: speed, shield: shield, dmg: dmg, color: t.color };
 }
+loadMoney(); getShopData();
 setTimeout(tryAutoLogin, 500);
 </script>
 </body>
